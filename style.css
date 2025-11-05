@@ -6,22 +6,53 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    /* Background inspirado en la bandera del Reino Unido */
+    background: linear-gradient(135deg, 
+        #012169 0%,     /* Azul marino de la bandera UK */
+        #1e40af 25%,    /* Azul transición */
+        #C8102E 50%,    /* Rojo de la bandera UK */
+        #dc2626 75%,    /* Rojo transición */
+        #012169 100%    /* Azul marino final */
+    );
+    background-attachment: fixed;
     min-height: 100vh;
     padding: 20px;
+    position: relative;
+}
+
+/* Patrón sutil inspirado en la Union Jack */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        linear-gradient(45deg, rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(-45deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
 }
 
 .container {
     max-width: 800px;
     margin: 0 auto;
+    position: relative;
+    z-index: 1;
 }
 
 /* Sección de subida */
 .upload-section {
-    background: white;
+    background: rgba(255, 255, 255, 0.98);
+    backdrop-filter: blur(10px);
     border-radius: 20px;
     padding: 40px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: 
+        0 20px 60px rgba(0, 0, 0, 0.3),
+        0 0 0 1px rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(200, 16, 46, 0.1); /* Sutil borde rojo UK */
 }
 
 .header {
@@ -30,85 +61,26 @@ body {
     justify-content: center;
     gap: 15px;
     margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 3px solid;
+    border-image: linear-gradient(90deg, #012169, #C8102E, #012169) 1;
 }
 
 .icon-header {
     width: 40px;
     height: 40px;
-    color: #1e3a8a;
+    color: #012169; /* Azul UK */
     stroke-width: 1.5;
 }
 
 .header h1 {
-    color: #1e3a8a;
+    background: linear-gradient(135deg, #012169, #C8102E);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     font-size: 28px;
     font-weight: 700;
-}
-
-/* Debug Panel - NUEVO */
-.debug-panel {
-    background: #f8f9fa;
-    border: 2px solid #dee2e6;
-    border-radius: 10px;
-    padding: 20px;
-    margin-bottom: 30px;
-    font-family: 'Courier New', monospace;
-    font-size: 14px;
-}
-
-.debug-panel h3 {
-    color: #495057;
-    margin-bottom: 15px;
-    font-size: 16px;
-}
-
-.debug-panel div {
-    background: #ffffff;
-    padding: 8px 12px;
-    margin: 5px 0;
-    border-radius: 5px;
-    border-left: 4px solid #6c757d;
-}
-
-#debugStatus {
-    border-left-color: #17a2b8 !important;
-}
-
-#debugActions {
-    border-left-color: #28a745 !important;
-}
-
-#debugFiles {
-    border-left-color: #ffc107 !important;
-}
-
-#debugAPI {
-    border-left-color: #dc3545 !important;
-}
-
-/* Botones de Prueba */
-.test-buttons {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 20px;
-}
-
-.test-btn {
-    flex: 1;
-    padding: 12px;
-    background: #6c757d;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-.test-btn:hover {
-    background: #5a6268;
-    transform: translateY(-1px);
+    text-align: center;
 }
 
 /* Formulario */
@@ -124,13 +96,16 @@ textarea {
     border-radius: 10px;
     font-size: 16px;
     font-family: inherit;
-    transition: border-color 0.3s;
+    transition: all 0.3s ease;
+    background: rgba(255, 255, 255, 0.9);
 }
 
 input[type="text"]:focus,
 textarea:focus {
     outline: none;
-    border-color: #1e3a8a;
+    border-color: #012169;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 0 0 3px rgba(1, 33, 105, 0.1);
 }
 
 textarea {
@@ -151,7 +126,7 @@ textarea {
 .icon-label {
     width: 20px;
     height: 20px;
-    color: #6b7280;
+    color: #012169;
     stroke-width: 2;
 }
 
@@ -166,8 +141,8 @@ textarea {
     align-items: center;
     justify-content: center;
     padding: 30px 20px;
-    background: #f9fafb;
-    border: 3px dashed #d1d5db;
+    background: linear-gradient(135deg, rgba(1, 33, 105, 0.05), rgba(200, 16, 46, 0.05));
+    border: 3px dashed rgba(1, 33, 105, 0.3);
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -175,27 +150,27 @@ textarea {
 }
 
 .file-upload-area:hover {
-    background: #f3f4f6;
-    border-color: #9ca3af;
+    background: linear-gradient(135deg, rgba(1, 33, 105, 0.1), rgba(200, 16, 46, 0.1));
+    border-color: #012169;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 8px 25px rgba(1, 33, 105, 0.15);
 }
 
 .file-upload-area.has-file {
-    background: #dbeafe;
-    border-color: #3b82f6;
+    background: linear-gradient(135deg, rgba(1, 33, 105, 0.1), rgba(200, 16, 46, 0.1));
+    border-color: #C8102E;
     border-style: solid;
 }
 
 .file-upload-area.has-file:hover {
-    background: #bfdbfe;
-    border-color: #2563eb;
+    background: linear-gradient(135deg, rgba(1, 33, 105, 0.15), rgba(200, 16, 46, 0.15));
+    border-color: #012169;
 }
 
 .upload-icon {
     width: 60px;
     height: 60px;
-    color: #9ca3af;
+    color: rgba(1, 33, 105, 0.6);
     stroke-width: 1.5;
     margin-bottom: 15px;
     transition: all 0.3s ease;
@@ -203,11 +178,11 @@ textarea {
 
 .file-upload-area:hover .upload-icon {
     transform: scale(1.1);
-    color: #6b7280;
+    color: #012169;
 }
 
 .file-upload-area.has-file .upload-icon {
-    color: #3b82f6;
+    color: #C8102E;
 }
 
 .upload-text {
@@ -219,41 +194,34 @@ textarea {
 }
 
 .file-upload-area.has-file .upload-text {
-    color: #1e40af;
+    color: #012169;
 }
 
 .upload-hint {
     font-size: 13px;
-    color: #9ca3af;
+    color: #6b7280;
     text-align: center;
 }
 
 .file-upload-area.has-file .upload-hint {
-    color: #3b82f6;
+    color: #C8102E;
 }
 
-/* Preview de Media - IMPORTANTE: CSS mejorado para debugging */
+/* Preview de Media */
 .media-preview {
     margin-top: 20px;
     padding: 20px;
-    background: #f0f9ff;
-    border: 3px solid #3b82f6;
+    background: linear-gradient(135deg, rgba(1, 33, 105, 0.05), rgba(255, 255, 255, 0.9));
+    border: 2px solid rgba(1, 33, 105, 0.2);
     border-radius: 12px;
     animation: fadeIn 0.3s ease;
-    
-    /* DEBUGGING: Forzar visibilidad */
-    display: none !important;
-    opacity: 0;
-    transform: translateY(-10px);
+    display: none;
 }
 
 .media-preview.show {
     display: block !important;
-    opacity: 1 !important;
-    transform: translateY(0) !important;
 }
 
-/* Animación de aparición */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -276,13 +244,14 @@ textarea {
 .icon-preview {
     width: 24px;
     height: 24px;
-    color: #3b82f6;
+    color: #012169;
     stroke-width: 2;
 }
 
 .preview-header strong {
     font-size: 16px;
     font-weight: bold;
+    color: #012169;
 }
 
 audio, video {
@@ -290,6 +259,7 @@ audio, video {
     border-radius: 8px;
     margin-bottom: 15px;
     background: #000;
+    border: 1px solid rgba(1, 33, 105, 0.2);
 }
 
 video {
@@ -303,7 +273,7 @@ video {
     gap: 8px;
     width: 100%;
     padding: 10px;
-    background: #fee2e2;
+    background: linear-gradient(135deg, #fee2e2, #fecaca);
     color: #991b1b;
     border: 2px solid #fecaca;
     border-radius: 8px;
@@ -314,9 +284,10 @@ video {
 }
 
 .remove-file-btn:hover {
-    background: #fecaca;
-    border-color: #ef4444;
+    background: linear-gradient(135deg, #fecaca, #ef4444);
+    color: white;
     transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
 }
 
 .icon-remove {
@@ -325,34 +296,56 @@ video {
     stroke-width: 2.5;
 }
 
-/* Botón de envío */
+/* Botón de envío - Estilo UK */
 .submit-btn {
     width: 100%;
-    padding: 16px;
-    background: #1e3a8a;
+    padding: 18px;
+    background: linear-gradient(135deg, #012169, #C8102E);
     color: white;
     border: none;
-    border-radius: 10px;
+    border-radius: 12px;
     font-size: 18px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 10px;
+    box-shadow: 0 8px 25px rgba(1, 33, 105, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.submit-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.submit-btn:hover::before {
+    left: 100%;
 }
 
 .submit-btn:hover {
-    background: #1e40af;
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(30, 58, 138, 0.3);
+    box-shadow: 0 12px 35px rgba(1, 33, 105, 0.4);
 }
 
 .submit-btn:disabled {
-    background: #9ca3af;
+    background: linear-gradient(135deg, #9ca3af, #6b7280);
     cursor: not-allowed;
     transform: none;
+    box-shadow: none;
+}
+
+.submit-btn:disabled::before {
+    display: none;
 }
 
 .icon-btn {
@@ -365,10 +358,11 @@ video {
 .status-message {
     margin-top: 20px;
     padding: 15px;
-    border-radius: 8px;
+    border-radius: 10px;
     text-align: center;
     font-weight: 500;
     display: none;
+    backdrop-filter: blur(5px);
 }
 
 .status-message.show {
@@ -377,36 +371,44 @@ video {
 }
 
 .status-message.success {
-    background: #d1fae5;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 95, 70, 0.1));
     color: #065f46;
     border: 2px solid #10b981;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
 }
 
 .status-message.error {
-    background: #fee2e2;
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(153, 27, 27, 0.1));
     color: #991b1b;
     border: 2px solid #ef4444;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
 }
 
 .status-message.loading {
-    background: #dbeafe;
-    color: #1e40af;
-    border: 2px solid #3b82f6;
+    background: linear-gradient(135deg, rgba(1, 33, 105, 0.1), rgba(200, 16, 46, 0.1));
+    color: #012169;
+    border: 2px solid #012169;
+    box-shadow: 0 4px 12px rgba(1, 33, 105, 0.2);
 }
 
-/* DEBUGGING: Clases especiales para verificar funcionamiento */
-.debug-visible {
-    border: 3px solid red !important;
-    background: yellow !important;
-}
-
-.debug-hidden {
-    border: 3px solid blue !important;
-    background: lightblue !important;
+/* Efectos adicionales UK */
+.upload-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, #012169, #C8102E, #012169);
+    border-radius: 20px 20px 0 0;
 }
 
 /* Responsive */
 @media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+    
     .upload-section {
         padding: 25px;
     }
@@ -430,12 +432,32 @@ video {
         height: 48px;
     }
     
-    .test-buttons {
-        flex-direction: column;
+    .submit-btn {
+        padding: 16px;
+        font-size: 16px;
     }
-    
-    .debug-panel {
-        padding: 15px;
-        font-size: 12px;
+}
+
+/* Animaciones suaves */
+@keyframes ukPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(1, 33, 105, 0.4);
     }
+    50% {
+        box-shadow: 0 0 0 10px rgba(1, 33, 105, 0);
+    }
+}
+
+.submit-btn:not(:disabled):focus {
+    animation: ukPulse 2s infinite;
+}
+
+/* Estilo especial para archivos válidos */
+.file-upload-area.has-file .upload-text strong {
+    color: #012169;
+}
+
+.file-upload-area.has-file .upload-text small {
+    color: #C8102E;
+    font-weight: 600;
 }
