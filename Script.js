@@ -15,9 +15,7 @@ let audioUploadArea, videoUploadArea, audioPreview, videoPreview;
 let audioPlayer, videoPlayer, submitBtn, statusMessage;
 let testAPIBtn, testPreviewBtn;
 
-// ========================================
-// DEBUGGING
-// ========================================
+
 function updateDebug(type, message) {
     const timestamp = new Date().toLocaleTimeString();
     const fullMessage = `[${timestamp}] ${message}`;
