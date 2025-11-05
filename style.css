@@ -28,12 +28,15 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 10px;
+    gap: 15px;
     margin-bottom: 30px;
 }
 
-.header .icon {
-    font-size: 32px;
+.icon-header {
+    width: 40px;
+    height: 40px;
+    color: #1e3a8a;
+    stroke-width: 1.5;
 }
 
 .header h1 {
@@ -44,7 +47,7 @@ body {
 
 /* Formulario */
 .form-group {
-    margin-bottom: 20px;
+    margin-bottom: 25px;
 }
 
 input[type="text"],
@@ -73,9 +76,17 @@ textarea {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-weight: 500;
+    font-weight: 600;
     color: #374151;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
+    font-size: 15px;
+}
+
+.icon-label {
+    width: 20px;
+    height: 20px;
+    color: #6b7280;
+    stroke-width: 2;
 }
 
 .file-input {
@@ -94,7 +105,7 @@ textarea {
     border-radius: 12px;
     cursor: pointer;
     transition: all 0.3s ease;
-    min-height: 120px;
+    min-height: 140px;
 }
 
 .file-upload-area:hover {
@@ -116,13 +127,21 @@ textarea {
 }
 
 .upload-icon {
-    font-size: 48px;
-    margin-bottom: 10px;
-    transition: transform 0.3s ease;
+    width: 60px;
+    height: 60px;
+    color: #9ca3af;
+    stroke-width: 1.5;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
 }
 
 .file-upload-area:hover .upload-icon {
     transform: scale(1.1);
+    color: #6b7280;
+}
+
+.file-upload-area.has-file .upload-icon {
+    color: #3b82f6;
 }
 
 .upload-text {
@@ -147,6 +166,86 @@ textarea {
     color: #3b82f6;
 }
 
+/* Preview de Media */
+.media-preview {
+    margin-top: 20px;
+    padding: 20px;
+    background: #f9fafb;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.preview-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    color: #374151;
+}
+
+.icon-preview {
+    width: 24px;
+    height: 24px;
+    color: #3b82f6;
+    stroke-width: 2;
+}
+
+.preview-header strong {
+    font-size: 16px;
+}
+
+audio, video {
+    width: 100%;
+    border-radius: 8px;
+    margin-bottom: 15px;
+}
+
+video {
+    max-height: 400px;
+    background: #000;
+}
+
+.remove-file-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px;
+    background: #fee2e2;
+    color: #991b1b;
+    border: 2px solid #fecaca;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.remove-file-btn:hover {
+    background: #fecaca;
+    border-color: #ef4444;
+    transform: translateY(-1px);
+}
+
+.icon-remove {
+    width: 18px;
+    height: 18px;
+    stroke-width: 2.5;
+}
+
 /* Botón de envío */
 .submit-btn {
     width: 100%;
@@ -159,6 +258,10 @@ textarea {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
 }
 
 .submit-btn:hover {
@@ -173,6 +276,12 @@ textarea {
     transform: none;
 }
 
+.icon-btn {
+    width: 24px;
+    height: 24px;
+    stroke-width: 2;
+}
+
 /* Mensaje de estado */
 .status-message {
     margin-top: 20px;
@@ -185,6 +294,7 @@ textarea {
 
 .status-message.show {
     display: block;
+    animation: fadeIn 0.3s ease;
 }
 
 .status-message.success {
@@ -208,10 +318,25 @@ textarea {
 /* Responsive */
 @media (max-width: 768px) {
     .upload-section {
-        padding: 20px;
+        padding: 25px;
     }
 
     .header h1 {
         font-size: 24px;
+    }
+    
+    .icon-header {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .file-upload-area {
+        min-height: 120px;
+        padding: 20px 15px;
+    }
+    
+    .upload-icon {
+        width: 48px;
+        height: 48px;
     }
 }
