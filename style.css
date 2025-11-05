@@ -61,9 +61,6 @@ body::before {
     justify-content: center;
     gap: 15px;
     margin-bottom: 30px;
-    padding-bottom: 20px;
-    border-bottom: 3px solid;
-    border-image: linear-gradient(90deg, #012169, #C8102E, #012169) 1;
 }
 
 .icon-header {
