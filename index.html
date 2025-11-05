@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Your Experience - Student Portal</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Formulario de subida -->
+        <div class="upload-section">
+            <div class="header">
+                <span class="icon">👥</span>
+                <h1>Upload Your Experience</h1>
+            </div>
+
+            <form id="experienceForm">
+                <div class="form-group">
+                    <input 
+                        type="text" 
+                        id="studentName" 
+                        name="studentName" 
+                        placeholder="Your name" 
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <textarea 
+                        id="experience" 
+                        name="experience" 
+                        placeholder="Describe your English experience..." 
+                        rows="5" 
+                        required
+                    ></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="file-label">
+                        <span class="icon">🎤</span> Upload Audio (optional):
+                    </label>
+                    <input 
+                        type="file" 
+                        id="audioFile" 
+                        name="audioFile" 
+                        accept="audio/*"
+                        class="file-input"
+                    >
+                    <span class="file-name" id="audioFileName">No se eligió ningún archivo</span>
+                </div>
+
+                <div class="form-group">
+                    <label class="file-label">
+                        <span class="icon">🎥</span> Upload Video (optional):
+                    </label>
+                    <input 
+                        type="file" 
+                        id="videoFile" 
+                        name="videoFile" 
+                        accept="video/*"
+                        class="file-input"
+                    >
+                    <span class="file-name" id="videoFileName">No se eligió ningún archivo</span>
+                </div>
+
+                <button type="submit" class="submit-btn" id="submitBtn">
+                    Post Experience
+                </button>
+            </form>
+
+            <!-- Mensaje de estado -->
+            <div id="statusMessage" class="status-message"></div>
+        </div>
+
+        <!-- Sección de experiencias -->
+        <div class="experiences-section">
+            <div class="header">
+                <span class="icon">📚</span>
+                <h2>Student Experiences</h2>
+            </div>
+            
+            <div id="experiencesList" class="experiences-list">
+                <div class="loading">Loading experiences...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
