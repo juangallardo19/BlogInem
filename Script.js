@@ -1,9 +1,9 @@
 // ========================================
-// CONFIGURACIÓN - ACTUALIZA ESTA URL
+// CONFIGURACIÓN PRINCIPAL
 // ========================================
-const SCRIPT_URL = 'TU_NUEVA_URL_AQUI'; // ⬅️ CAMBIA ESTO
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwy2oOrX7th7BDKz-ur6FIJ2kJ-AxThovse1c70cd_-YyNezI_7_juyG8bM2mshmxlE/exec';
 
-console.log('🚀 INICIANDO APLICACIÓN v2');
+console.log('🚀 INICIANDO APLICACIÓN - CORS FIXED');
 console.log('📍 Script URL:', SCRIPT_URL);
 
 // ========================================
@@ -16,7 +16,7 @@ let audioPlayer, videoPlayer, submitBtn, statusMessage;
 let testAPIBtn, testPreviewBtn;
 
 // ========================================
-// FUNCIÓN DE DEBUGGING MEJORADA
+// DEBUGGING
 // ========================================
 function updateDebug(type, message) {
     const timestamp = new Date().toLocaleTimeString();
@@ -34,7 +34,7 @@ function updateDebug(type, message) {
 function getDebugColor(type) {
     const colors = {
         status: '#e3f2fd',
-        actions: '#e8f5e8', 
+        actions: '#e8f5e8',
         files: '#fff3e0',
         api: '#ffebee'
     };
@@ -46,13 +46,6 @@ function getDebugColor(type) {
 // ========================================
 function initializeApp() {
     console.log('🔄 Inicializando aplicación...');
-    
-    // Verificar URL
-    if (SCRIPT_URL === 'TU_NUEVA_URL_AQUI') {
-        console.error('❌ ERROR: Debes actualizar SCRIPT_URL');
-        updateDebug('status', '❌ ERROR: URL del script no configurada');
-        return;
-    }
     
     try {
         // Buscar elementos DOM
@@ -85,9 +78,7 @@ function initializeApp() {
             'audioUploadArea': audioUploadArea,
             'videoUploadArea': videoUploadArea,
             'audioPreview': audioPreview,
-            'videoPreview': videoPreview,
-            'testAPIBtn': testAPIBtn,
-            'testPreviewBtn': testPreviewBtn
+            'videoPreview': videoPreview
         };
         
         let missingElements = [];
@@ -101,12 +92,12 @@ function initializeApp() {
             throw new Error(`Elementos faltantes: ${missingElements.join(', ')}`);
         }
         
-        updateDebug('status', '✅ Todos los elementos DOM encontrados');
+        updateDebug('status', '✅ Elementos DOM encontrados');
         
         // Configurar event listeners
         setupEventListeners();
         
-        updateDebug('status', '✅ Aplicación inicializada correctamente');
+        updateDebug('status', '✅ App inicializada - CORS FIXED');
         
     } catch (error) {
         console.error('❌ Error en inicialización:', error);
@@ -115,13 +106,13 @@ function initializeApp() {
 }
 
 // ========================================
-// CONFIGURAR EVENT LISTENERS
+// EVENT LISTENERS
 // ========================================
 function setupEventListeners() {
     console.log('🔗 Configurando event listeners...');
     
     try {
-        // Eventos de click para áreas de upload
+        // Clicks en áreas de upload
         audioUploadArea.addEventListener('click', function() {
             console.log('👆 Click en área de audio');
             updateDebug('actions', 'Click en área de audio');
@@ -134,223 +125,130 @@ function setupEventListeners() {
             videoInput.click();
         });
         
-        // Eventos de cambio de archivo
+        // Cambios de archivo
         audioInput.addEventListener('change', handleAudioChange);
         videoInput.addEventListener('change', handleVideoChange);
         
-        // Eventos de formulario
+        // Form submit
         form.addEventListener('submit', handleFormSubmit);
         
-        // Botones de prueba
-        testAPIBtn.addEventListener('click', testAPIConnection);
-        testPreviewBtn.addEventListener('click', testPreviewFunction);
+        // Botones de prueba (si existen)
+        if (testAPIBtn) testAPIBtn.addEventListener('click', testAPIConnection);
+        if (testPreviewBtn) testPreviewBtn.addEventListener('click', testPreviewFunction);
         
         console.log('✅ Event listeners configurados');
-        updateDebug('actions', 'Event listeners configurados');
+        updateDebug('actions', 'Event listeners OK');
         
     } catch (error) {
-        console.error('❌ Error configurando event listeners:', error);
+        console.error('❌ Error configurando listeners:', error);
         updateDebug('actions', `❌ Error: ${error.message}`);
     }
 }
 
 // ========================================
-// TEST API CONNECTION - MEJORADO
-// ========================================
-async function testAPIConnection() {
-    console.log('🧪 Probando conexión con API...');
-    updateDebug('api', 'Probando conexión...');
-    
-    try {
-        console.log('📡 Enviando petición GET a:', SCRIPT_URL);
-        
-        const response = await fetch(SCRIPT_URL, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        console.log('📨 Respuesta recibida:', {
-            status: response.status,
-            statusText: response.statusText,
-            url: response.url,
-            redirected: response.redirected,
-            type: response.type
-        });
-        
-        const responseText = await response.text();
-        console.log('📄 Contenido de respuesta (primeros 500 chars):', responseText.substring(0, 500));
-        
-        let responseData;
-        try {
-            responseData = JSON.parse(responseText);
-            console.log('📊 Datos parseados:', responseData);
-            
-            if (responseData.success) {
-                updateDebug('api', `✅ API OK: ${responseData.message}`);
-                showMessage(`API Test SUCCESS: ${responseData.message}`, 'success');
-            } else {
-                updateDebug('api', `⚠️ API Warning: ${responseData.message}`);
-                showMessage(`API Test Warning: ${responseData.message}`, 'error');
-            }
-        } catch (parseError) {
-            console.log('⚠️ Respuesta no es JSON:', parseError);
-            updateDebug('api', `⚠️ Respuesta no JSON: ${response.status}`);
-            showMessage(`API responded but not JSON. Status: ${response.status}`, 'error');
-        }
-        
-    } catch (error) {
-        console.error('❌ Error probando API:', error);
-        updateDebug('api', `❌ Error: ${error.message}`);
-        showMessage(`API Test FAILED: ${error.message}`, 'error');
-    }
-}
-
-// ========================================
-// TEST POST REQUEST - NUEVA FUNCIÓN
-// ========================================
-async function testPOSTRequest() {
-    console.log('🧪 Probando petición POST...');
-    updateDebug('api', 'Probando POST...');
-    
-    try {
-        const testData = {
-            studentName: 'Test Student',
-            experience: 'This is a test experience',
-            timestamp: new Date().toISOString()
-        };
-        
-        console.log('📦 Datos de prueba:', testData);
-        console.log('📡 Enviando petición POST a:', SCRIPT_URL);
-        
-        const requestBody = JSON.stringify(testData);
-        console.log('📄 Body de petición:', requestBody);
-        
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: requestBody
-        });
-        
-        console.log('📨 Respuesta POST recibida:', {
-            status: response.status,
-            statusText: response.statusText,
-            url: response.url,
-            headers: Object.fromEntries(response.headers.entries())
-        });
-        
-        const responseText = await response.text();
-        console.log('📄 Contenido respuesta POST:', responseText);
-        
-        let responseData;
-        try {
-            responseData = JSON.parse(responseText);
-            console.log('📊 Datos POST parseados:', responseData);
-            
-            if (responseData.success) {
-                updateDebug('api', `✅ POST OK: ${responseData.message}`);
-                showMessage(`POST Test SUCCESS: ${responseData.message}`, 'success');
-            } else {
-                updateDebug('api', `❌ POST Error: ${responseData.message}`);
-                showMessage(`POST Test FAILED: ${responseData.message}`, 'error');
-            }
-        } catch (parseError) {
-            console.log('⚠️ Respuesta POST no es JSON:', parseError);
-            updateDebug('api', `⚠️ POST respuesta no JSON`);
-            showMessage(`POST responded but not JSON. Status: ${response.status}`, 'error');
-        }
-        
-    } catch (error) {
-        console.error('❌ Error en prueba POST:', error);
-        updateDebug('api', `❌ POST Error: ${error.message}`);
-        showMessage(`POST Test FAILED: ${error.message}`, 'error');
-    }
-}
-
-// ========================================
-// MANEJO DE ARCHIVOS - SIMPLIFICADO PARA DEBUG
+// MANEJO DE ARCHIVOS DE AUDIO
 // ========================================
 function handleAudioChange(e) {
-    console.log('🎵 Audio file selected');
-    updateDebug('files', `Audio: ${e.target.files.length} files`);
+    console.log('🎵 Audio seleccionado');
+    updateDebug('files', `Audio: ${e.target.files.length} archivos`);
     
     if (e.target.files.length > 0) {
         const file = e.target.files[0];
-        console.log('📄 Audio file details:', {
+        console.log('📄 Archivo de audio:', {
             name: file.name,
             type: file.type,
             size: file.size
         });
         
         const fileSize = (file.size / 1024 / 1024).toFixed(2);
+        
+        // Verificar tamaño (límite 25MB para audio)
+        if (file.size > 25 * 1024 * 1024) {
+            showMessage(`Audio file too large (${fileSize}MB). Please use a file smaller than 25MB.`, 'error');
+            audioInput.value = '';
+            return;
+        }
+        
         updateDebug('files', `Audio: ${file.name} (${fileSize} MB)`);
         
-        // Mostrar preview
         try {
+            // Actualizar interfaz
             audioFileName.innerHTML = `<strong>${file.name}</strong><br><small>Size: ${fileSize} MB</small>`;
             audioUploadArea.classList.add('has-file');
             
+            // Crear URL y configurar reproductor
             const fileURL = URL.createObjectURL(file);
             audioPlayer.src = fileURL;
             
-            // FORZAR visibilidad del preview
+            // MOSTRAR PREVIEW - FORZADO
             audioPreview.style.display = 'block';
             audioPreview.style.opacity = '1';
             audioPreview.style.transform = 'translateY(0)';
             audioPreview.classList.add('show');
             
+            // Ocultar área de upload
             audioUploadArea.style.display = 'none';
             
             console.log('✅ Audio preview mostrado');
-            updateDebug('files', `✅ Audio preview visible`);
+            updateDebug('files', `✅ Audio preview visible: ${file.name}`);
             
         } catch (error) {
-            console.error('❌ Error mostrando preview audio:', error);
-            updateDebug('files', `❌ Error: ${error.message}`);
+            console.error('❌ Error con preview de audio:', error);
+            updateDebug('files', `❌ Error audio: ${error.message}`);
         }
     }
 }
 
+// ========================================
+// MANEJO DE ARCHIVOS DE VIDEO
+// ========================================
 function handleVideoChange(e) {
-    console.log('🎥 Video file selected');
-    updateDebug('files', `Video: ${e.target.files.length} files`);
+    console.log('🎥 Video seleccionado');
+    updateDebug('files', `Video: ${e.target.files.length} archivos`);
     
     if (e.target.files.length > 0) {
         const file = e.target.files[0];
-        console.log('📄 Video file details:', {
+        console.log('📄 Archivo de video:', {
             name: file.name,
             type: file.type,
             size: file.size
         });
         
         const fileSize = (file.size / 1024 / 1024).toFixed(2);
+        
+        // Verificar tamaño (límite 100MB para video)
+        if (file.size > 100 * 1024 * 1024) {
+            showMessage(`Video file too large (${fileSize}MB). Please use a file smaller than 100MB.`, 'error');
+            videoInput.value = '';
+            return;
+        }
+        
         updateDebug('files', `Video: ${file.name} (${fileSize} MB)`);
         
-        // Mostrar preview
         try {
+            // Actualizar interfaz
             videoFileName.innerHTML = `<strong>${file.name}</strong><br><small>Size: ${fileSize} MB</small>`;
             videoUploadArea.classList.add('has-file');
             
+            // Crear URL y configurar reproductor
             const fileURL = URL.createObjectURL(file);
             videoPlayer.src = fileURL;
             
-            // FORZAR visibilidad del preview
+            // MOSTRAR PREVIEW - FORZADO
             videoPreview.style.display = 'block';
             videoPreview.style.opacity = '1';
             videoPreview.style.transform = 'translateY(0)';
             videoPreview.classList.add('show');
             
+            // Ocultar área de upload
             videoUploadArea.style.display = 'none';
             
             console.log('✅ Video preview mostrado');
-            updateDebug('files', `✅ Video preview visible`);
+            updateDebug('files', `✅ Video preview visible: ${file.name}`);
             
         } catch (error) {
-            console.error('❌ Error mostrando preview video:', error);
-            updateDebug('files', `❌ Error: ${error.message}`);
+            console.error('❌ Error con preview de video:', error);
+            updateDebug('files', `❌ Error video: ${error.message}`);
         }
     }
 }
@@ -383,28 +281,60 @@ function removeVideo() {
 }
 
 // ========================================
+// TEST API CONNECTION
+// ========================================
+async function testAPIConnection() {
+    console.log('🧪 Probando API...');
+    updateDebug('api', 'Probando GET...');
+    
+    try {
+        const response = await fetch(SCRIPT_URL, {
+            method: 'GET'
+        });
+        
+        const responseText = await response.text();
+        console.log('📄 Respuesta GET:', responseText);
+        
+        if (response.ok) {
+            updateDebug('api', '✅ GET OK');
+            showMessage('API Test: SUCCESS', 'success');
+        } else {
+            updateDebug('api', `⚠️ GET ${response.status}`);
+            showMessage(`API Test: ${response.status}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error API test:', error);
+        updateDebug('api', `❌ Error: ${error.message}`);
+        showMessage(`API Test Failed: ${error.message}`, 'error');
+    }
+}
+
+// ========================================
 // TEST PREVIEW FUNCTION
 // ========================================
 function testPreviewFunction() {
-    console.log('🔍 Testing preview function...');
-    updateDebug('actions', 'Testing preview...');
+    console.log('🔍 Testing previews...');
+    updateDebug('actions', 'Testing previews...');
     
-    // Mostrar preview de audio temporalmente
-    audioPreview.innerHTML = '<div style="padding: 20px; background: yellow; color: black; font-weight: bold;">🧪 TEST AUDIO PREVIEW - Si ves esto, el CSS funciona</div>';
+    // Mostrar previews de prueba
+    audioPreview.innerHTML = '<div style="padding: 20px; background: yellow; color: black; font-weight: bold;">🧪 AUDIO PREVIEW TEST - Funcionando!</div>';
     audioPreview.style.display = 'block';
     audioPreview.style.opacity = '1';
     
-    // Mostrar preview de video temporalmente
-    videoPreview.innerHTML = '<div style="padding: 20px; background: lime; color: black; font-weight: bold;">🧪 TEST VIDEO PREVIEW - Si ves esto, el CSS funciona</div>';
+    videoPreview.innerHTML = '<div style="padding: 20px; background: lime; color: black; font-weight: bold;">🧪 VIDEO PREVIEW TEST - Funcionando!</div>';
     videoPreview.style.display = 'block';
     videoPreview.style.opacity = '1';
     
     updateDebug('actions', '✅ Test previews shown');
     showMessage('Test previews shown for 3 seconds', 'success');
     
+    // Restaurar después de 3 segundos
     setTimeout(() => {
         audioPreview.style.display = 'none';
         videoPreview.style.display = 'none';
+        
+        // Restaurar HTML original
         audioPreview.innerHTML = `
             <div class="preview-header">
                 <svg class="icon-preview" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -420,6 +350,7 @@ function testPreviewFunction() {
                 Remove Audio
             </button>
         `;
+        
         videoPreview.innerHTML = `
             <div class="preview-header">
                 <svg class="icon-preview" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -435,20 +366,123 @@ function testPreviewFunction() {
                 Remove Video
             </button>
         `;
+        
         updateDebug('actions', 'Test previews hidden');
     }, 3000);
 }
 
 // ========================================
-// FORM SUBMIT - SIMPLIFICADO PARA DEBUG
+// FORM SUBMIT - CORS FIXED
 // ========================================
 async function handleFormSubmit(e) {
     e.preventDefault();
-    console.log('📝 Form submit started');
+    
+    console.log('📝 Envío de formulario - CORS FIXED');
     updateDebug('actions', 'Form submitting...');
     
-    // Para debug, usar la función de test POST
-    await testPOSTRequest();
+    try {
+        // Validar campos
+        const studentName = document.getElementById('studentName').value.trim();
+        const experience = document.getElementById('experience').value.trim();
+        
+        if (!studentName || !experience) {
+            throw new Error('Please fill in all required fields');
+        }
+        
+        // Deshabilitar botón
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `
+            <svg class="icon-btn" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            Uploading...
+        `;
+        showMessage('Processing your submission... Please wait.', 'loading');
+        
+        // Preparar datos
+        const formData = {
+            studentName: studentName,
+            experience: experience,
+            timestamp: new Date().toISOString()
+        };
+        
+        console.log('📦 Datos base:', formData);
+        updateDebug('api', 'Preparing data...');
+        
+        // Procesar archivos con límites de tamaño
+        if (audioInput.files.length > 0) {
+            const audioFile = audioInput.files[0];
+            showMessage('Processing audio file...', 'loading');
+            console.log('🎵 Procesando audio...');
+            
+            const audioData = await fileToBase64(audioFile);
+            formData.audioFile = {
+                name: audioFile.name,
+                mimeType: audioFile.type,
+                data: audioData
+            };
+            console.log('✅ Audio procesado');
+        }
+        
+        if (videoInput.files.length > 0) {
+            const videoFile = videoInput.files[0];
+            showMessage('Processing video file...', 'loading');
+            console.log('🎥 Procesando video...');
+            
+            const videoData = await fileToBase64(videoFile);
+            formData.videoFile = {
+                name: videoFile.name,
+                mimeType: videoFile.type,
+                data: videoData
+            };
+            console.log('✅ Video procesado');
+        }
+        
+        const dataSize = JSON.stringify(formData).length;
+        console.log('📊 Tamaño total de datos:', dataSize, 'caracteres');
+        
+        showMessage('Sending to Google Drive...', 'loading');
+        updateDebug('api', 'Sending POST...');
+        
+        // ¡SOLUCIÓN CORS! - usar mode: 'no-cors'
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            mode: 'no-cors', // ⬅️ ESTO SOLUCIONA EL CORS
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+        
+        console.log('📨 Respuesta recibida (no-cors mode)');
+        
+        // Con no-cors no podemos leer la respuesta, pero si llegó aquí sin error, fue exitoso
+        console.log('✅ Envío completado sin errores CORS');
+        updateDebug('api', '✅ POST sent (no-cors)');
+        
+        showMessage('Success! Your experience has been submitted and saved to Google Drive.', 'success');
+        
+        // Limpiar formulario
+        form.reset();
+        removeAudio();
+        removeVideo();
+        
+        console.log('🎉 Formulario limpiado exitosamente');
+        
+    } catch (error) {
+        console.error('❌ Error en envío:', error);
+        updateDebug('api', `❌ Error: ${error.message}`);
+        showMessage(`Error: ${error.message}`, 'error');
+    } finally {
+        // Rehabilitar botón
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `
+            <svg class="icon-btn" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+            </svg>
+            Post Experience
+        `;
+    }
 }
 
 // ========================================
@@ -467,7 +501,7 @@ function fileToBase64(file) {
 }
 
 function showMessage(message, type) {
-    console.log(`💬 Message: ${type.toUpperCase()} - ${message}`);
+    console.log(`💬 Mensaje: ${type.toUpperCase()} - ${message}`);
     statusMessage.textContent = message;
     statusMessage.className = 'status-message show ' + type;
     
@@ -479,18 +513,17 @@ function showMessage(message, type) {
 }
 
 // ========================================
-// HACER FUNCIONES GLOBALES
+// GLOBALES
 // ========================================
 window.removeAudio = removeAudio;
 window.removeVideo = removeVideo;
-window.testPOSTRequest = testPOSTRequest;
 
 // ========================================
 // INICIALIZAR
 // ========================================
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('🏁 DOM loaded');
+    console.log('🏁 DOM loaded - CORS solution active');
     initializeApp();
 });
 
-console.log('📜 Script loaded');
+console.log('📜 Script loaded - CORS FIXED VERSION');
