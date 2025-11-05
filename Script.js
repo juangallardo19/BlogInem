@@ -1,181 +1,459 @@
-// URL de tu Google Apps Script - ACTUALIZA ESTA URL CON LA NUEVA
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyQXD1x37jz4n9zlGhedVD7jomKCyQpxA8v9c18g8SuA6nKnhUYah_u5ZI3bsNurBYY/exec';
+// ========================================
+// CONFIGURACIÓN - ACTUALIZA ESTA URL
+// ========================================
+const SCRIPT_URL = 'TU_NUEVA_URL_AQUI'; // ⬅️ CAMBIA ESTO
 
-// Elementos del DOM
-const form = document.getElementById('experienceForm');
-const audioInput = document.getElementById('audioFile');
-const videoInput = document.getElementById('videoFile');
-const audioFileName = document.getElementById('audioFileName');
-const videoFileName = document.getElementById('videoFileName');
-const audioUploadArea = document.getElementById('audioUploadArea');
-const videoUploadArea = document.getElementById('videoUploadArea');
-const audioPreview = document.getElementById('audioPreview');
-const videoPreview = document.getElementById('videoPreview');
-const audioPlayer = document.getElementById('audioPlayer');
-const videoPlayer = document.getElementById('videoPlayer');
-const submitBtn = document.getElementById('submitBtn');
-const statusMessage = document.getElementById('statusMessage');
+console.log('🚀 INICIANDO APLICACIÓN v2');
+console.log('📍 Script URL:', SCRIPT_URL);
 
-// Manejo de archivos de audio
-audioInput.addEventListener('change', function(e) {
-    console.log('Audio file selected:', this.files.length); // Debug
-    if (this.files.length > 0) {
-        const file = this.files[0];
+// ========================================
+// ELEMENTOS DOM
+// ========================================
+let debugStatus, debugActions, debugFiles, debugAPI;
+let form, audioInput, videoInput, audioFileName, videoFileName;
+let audioUploadArea, videoUploadArea, audioPreview, videoPreview;
+let audioPlayer, videoPlayer, submitBtn, statusMessage;
+let testAPIBtn, testPreviewBtn;
+
+// ========================================
+// FUNCIÓN DE DEBUGGING MEJORADA
+// ========================================
+function updateDebug(type, message) {
+    const timestamp = new Date().toLocaleTimeString();
+    const fullMessage = `[${timestamp}] ${message}`;
+    
+    console.log(`🐛 ${type.toUpperCase()}:`, fullMessage);
+    
+    const element = document.getElementById(`debug${type.charAt(0).toUpperCase() + type.slice(1)}`);
+    if (element) {
+        element.textContent = fullMessage;
+        element.style.backgroundColor = getDebugColor(type);
+    }
+}
+
+function getDebugColor(type) {
+    const colors = {
+        status: '#e3f2fd',
+        actions: '#e8f5e8', 
+        files: '#fff3e0',
+        api: '#ffebee'
+    };
+    return colors[type] || '#f5f5f5';
+}
+
+// ========================================
+// INICIALIZACIÓN
+// ========================================
+function initializeApp() {
+    console.log('🔄 Inicializando aplicación...');
+    
+    // Verificar URL
+    if (SCRIPT_URL === 'TU_NUEVA_URL_AQUI') {
+        console.error('❌ ERROR: Debes actualizar SCRIPT_URL');
+        updateDebug('status', '❌ ERROR: URL del script no configurada');
+        return;
+    }
+    
+    try {
+        // Buscar elementos DOM
+        debugStatus = document.getElementById('debugStatus');
+        debugActions = document.getElementById('debugActions');
+        debugFiles = document.getElementById('debugFiles');
+        debugAPI = document.getElementById('debugAPI');
+        
+        form = document.getElementById('experienceForm');
+        audioInput = document.getElementById('audioFile');
+        videoInput = document.getElementById('videoFile');
+        audioFileName = document.getElementById('audioFileName');
+        videoFileName = document.getElementById('videoFileName');
+        audioUploadArea = document.getElementById('audioUploadArea');
+        videoUploadArea = document.getElementById('videoUploadArea');
+        audioPreview = document.getElementById('audioPreview');
+        videoPreview = document.getElementById('videoPreview');
+        audioPlayer = document.getElementById('audioPlayer');
+        videoPlayer = document.getElementById('videoPlayer');
+        submitBtn = document.getElementById('submitBtn');
+        statusMessage = document.getElementById('statusMessage');
+        testAPIBtn = document.getElementById('testAPIBtn');
+        testPreviewBtn = document.getElementById('testPreviewBtn');
+        
+        // Verificar elementos críticos
+        const requiredElements = {
+            'form': form,
+            'audioInput': audioInput,
+            'videoInput': videoInput,
+            'audioUploadArea': audioUploadArea,
+            'videoUploadArea': videoUploadArea,
+            'audioPreview': audioPreview,
+            'videoPreview': videoPreview,
+            'testAPIBtn': testAPIBtn,
+            'testPreviewBtn': testPreviewBtn
+        };
+        
+        let missingElements = [];
+        for (const [name, element] of Object.entries(requiredElements)) {
+            if (!element) {
+                missingElements.push(name);
+            }
+        }
+        
+        if (missingElements.length > 0) {
+            throw new Error(`Elementos faltantes: ${missingElements.join(', ')}`);
+        }
+        
+        updateDebug('status', '✅ Todos los elementos DOM encontrados');
+        
+        // Configurar event listeners
+        setupEventListeners();
+        
+        updateDebug('status', '✅ Aplicación inicializada correctamente');
+        
+    } catch (error) {
+        console.error('❌ Error en inicialización:', error);
+        updateDebug('status', `❌ Error: ${error.message}`);
+    }
+}
+
+// ========================================
+// CONFIGURAR EVENT LISTENERS
+// ========================================
+function setupEventListeners() {
+    console.log('🔗 Configurando event listeners...');
+    
+    try {
+        // Eventos de click para áreas de upload
+        audioUploadArea.addEventListener('click', function() {
+            console.log('👆 Click en área de audio');
+            updateDebug('actions', 'Click en área de audio');
+            audioInput.click();
+        });
+        
+        videoUploadArea.addEventListener('click', function() {
+            console.log('👆 Click en área de video');
+            updateDebug('actions', 'Click en área de video');
+            videoInput.click();
+        });
+        
+        // Eventos de cambio de archivo
+        audioInput.addEventListener('change', handleAudioChange);
+        videoInput.addEventListener('change', handleVideoChange);
+        
+        // Eventos de formulario
+        form.addEventListener('submit', handleFormSubmit);
+        
+        // Botones de prueba
+        testAPIBtn.addEventListener('click', testAPIConnection);
+        testPreviewBtn.addEventListener('click', testPreviewFunction);
+        
+        console.log('✅ Event listeners configurados');
+        updateDebug('actions', 'Event listeners configurados');
+        
+    } catch (error) {
+        console.error('❌ Error configurando event listeners:', error);
+        updateDebug('actions', `❌ Error: ${error.message}`);
+    }
+}
+
+// ========================================
+// TEST API CONNECTION - MEJORADO
+// ========================================
+async function testAPIConnection() {
+    console.log('🧪 Probando conexión con API...');
+    updateDebug('api', 'Probando conexión...');
+    
+    try {
+        console.log('📡 Enviando petición GET a:', SCRIPT_URL);
+        
+        const response = await fetch(SCRIPT_URL, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        console.log('📨 Respuesta recibida:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: response.url,
+            redirected: response.redirected,
+            type: response.type
+        });
+        
+        const responseText = await response.text();
+        console.log('📄 Contenido de respuesta (primeros 500 chars):', responseText.substring(0, 500));
+        
+        let responseData;
+        try {
+            responseData = JSON.parse(responseText);
+            console.log('📊 Datos parseados:', responseData);
+            
+            if (responseData.success) {
+                updateDebug('api', `✅ API OK: ${responseData.message}`);
+                showMessage(`API Test SUCCESS: ${responseData.message}`, 'success');
+            } else {
+                updateDebug('api', `⚠️ API Warning: ${responseData.message}`);
+                showMessage(`API Test Warning: ${responseData.message}`, 'error');
+            }
+        } catch (parseError) {
+            console.log('⚠️ Respuesta no es JSON:', parseError);
+            updateDebug('api', `⚠️ Respuesta no JSON: ${response.status}`);
+            showMessage(`API responded but not JSON. Status: ${response.status}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error probando API:', error);
+        updateDebug('api', `❌ Error: ${error.message}`);
+        showMessage(`API Test FAILED: ${error.message}`, 'error');
+    }
+}
+
+// ========================================
+// TEST POST REQUEST - NUEVA FUNCIÓN
+// ========================================
+async function testPOSTRequest() {
+    console.log('🧪 Probando petición POST...');
+    updateDebug('api', 'Probando POST...');
+    
+    try {
+        const testData = {
+            studentName: 'Test Student',
+            experience: 'This is a test experience',
+            timestamp: new Date().toISOString()
+        };
+        
+        console.log('📦 Datos de prueba:', testData);
+        console.log('📡 Enviando petición POST a:', SCRIPT_URL);
+        
+        const requestBody = JSON.stringify(testData);
+        console.log('📄 Body de petición:', requestBody);
+        
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: requestBody
+        });
+        
+        console.log('📨 Respuesta POST recibida:', {
+            status: response.status,
+            statusText: response.statusText,
+            url: response.url,
+            headers: Object.fromEntries(response.headers.entries())
+        });
+        
+        const responseText = await response.text();
+        console.log('📄 Contenido respuesta POST:', responseText);
+        
+        let responseData;
+        try {
+            responseData = JSON.parse(responseText);
+            console.log('📊 Datos POST parseados:', responseData);
+            
+            if (responseData.success) {
+                updateDebug('api', `✅ POST OK: ${responseData.message}`);
+                showMessage(`POST Test SUCCESS: ${responseData.message}`, 'success');
+            } else {
+                updateDebug('api', `❌ POST Error: ${responseData.message}`);
+                showMessage(`POST Test FAILED: ${responseData.message}`, 'error');
+            }
+        } catch (parseError) {
+            console.log('⚠️ Respuesta POST no es JSON:', parseError);
+            updateDebug('api', `⚠️ POST respuesta no JSON`);
+            showMessage(`POST responded but not JSON. Status: ${response.status}`, 'error');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error en prueba POST:', error);
+        updateDebug('api', `❌ POST Error: ${error.message}`);
+        showMessage(`POST Test FAILED: ${error.message}`, 'error');
+    }
+}
+
+// ========================================
+// MANEJO DE ARCHIVOS - SIMPLIFICADO PARA DEBUG
+// ========================================
+function handleAudioChange(e) {
+    console.log('🎵 Audio file selected');
+    updateDebug('files', `Audio: ${e.target.files.length} files`);
+    
+    if (e.target.files.length > 0) {
+        const file = e.target.files[0];
+        console.log('📄 Audio file details:', {
+            name: file.name,
+            type: file.type,
+            size: file.size
+        });
+        
         const fileSize = (file.size / 1024 / 1024).toFixed(2);
-        
-        console.log('Audio file details:', file.name, file.type, fileSize + ' MB'); // Debug
-        
-        // Actualizar texto
-        audioFileName.innerHTML = `<strong>${file.name}</strong><br><small>Size: ${fileSize} MB</small>`;
-        audioUploadArea.classList.add('has-file');
+        updateDebug('files', `Audio: ${file.name} (${fileSize} MB)`);
         
         // Mostrar preview
-        const fileURL = URL.createObjectURL(file);
-        audioPlayer.src = fileURL;
-        audioPreview.style.display = 'block';
-        
-        // Ocultar área de upload
-        audioUploadArea.style.display = 'none';
-        
-        console.log('Audio preview should be visible now'); // Debug
+        try {
+            audioFileName.innerHTML = `<strong>${file.name}</strong><br><small>Size: ${fileSize} MB</small>`;
+            audioUploadArea.classList.add('has-file');
+            
+            const fileURL = URL.createObjectURL(file);
+            audioPlayer.src = fileURL;
+            
+            // FORZAR visibilidad del preview
+            audioPreview.style.display = 'block';
+            audioPreview.style.opacity = '1';
+            audioPreview.style.transform = 'translateY(0)';
+            audioPreview.classList.add('show');
+            
+            audioUploadArea.style.display = 'none';
+            
+            console.log('✅ Audio preview mostrado');
+            updateDebug('files', `✅ Audio preview visible`);
+            
+        } catch (error) {
+            console.error('❌ Error mostrando preview audio:', error);
+            updateDebug('files', `❌ Error: ${error.message}`);
+        }
     }
-});
+}
 
-// Manejo de archivos de video
-videoInput.addEventListener('change', function(e) {
-    console.log('Video file selected:', this.files.length); // Debug
-    if (this.files.length > 0) {
-        const file = this.files[0];
+function handleVideoChange(e) {
+    console.log('🎥 Video file selected');
+    updateDebug('files', `Video: ${e.target.files.length} files`);
+    
+    if (e.target.files.length > 0) {
+        const file = e.target.files[0];
+        console.log('📄 Video file details:', {
+            name: file.name,
+            type: file.type,
+            size: file.size
+        });
+        
         const fileSize = (file.size / 1024 / 1024).toFixed(2);
-        
-        console.log('Video file details:', file.name, file.type, fileSize + ' MB'); // Debug
-        
-        // Actualizar texto
-        videoFileName.innerHTML = `<strong>${file.name}</strong><br><small>Size: ${fileSize} MB</small>`;
-        videoUploadArea.classList.add('has-file');
+        updateDebug('files', `Video: ${file.name} (${fileSize} MB)`);
         
         // Mostrar preview
-        const fileURL = URL.createObjectURL(file);
-        videoPlayer.src = fileURL;
-        videoPreview.style.display = 'block';
-        
-        // Ocultar área de upload
-        videoUploadArea.style.display = 'none';
-        
-        console.log('Video preview should be visible now'); // Debug
+        try {
+            videoFileName.innerHTML = `<strong>${file.name}</strong><br><small>Size: ${fileSize} MB</small>`;
+            videoUploadArea.classList.add('has-file');
+            
+            const fileURL = URL.createObjectURL(file);
+            videoPlayer.src = fileURL;
+            
+            // FORZAR visibilidad del preview
+            videoPreview.style.display = 'block';
+            videoPreview.style.opacity = '1';
+            videoPreview.style.transform = 'translateY(0)';
+            videoPreview.classList.add('show');
+            
+            videoUploadArea.style.display = 'none';
+            
+            console.log('✅ Video preview mostrado');
+            updateDebug('files', `✅ Video preview visible`);
+            
+        } catch (error) {
+            console.error('❌ Error mostrando preview video:', error);
+            updateDebug('files', `❌ Error: ${error.message}`);
+        }
     }
-});
+}
 
-// Función para remover audio
+// ========================================
+// FUNCIONES PARA REMOVER ARCHIVOS
+// ========================================
 function removeAudio() {
-    console.log('Removing audio file'); // Debug
+    console.log('🗑️ Removiendo audio');
     audioInput.value = '';
     audioPlayer.src = '';
+    audioPreview.classList.remove('show');
     audioPreview.style.display = 'none';
     audioUploadArea.style.display = 'flex';
     audioFileName.innerHTML = 'Click here to select audio file';
     audioUploadArea.classList.remove('has-file');
+    updateDebug('files', 'Audio removido');
 }
 
-// Función para remover video
 function removeVideo() {
-    console.log('Removing video file'); // Debug
+    console.log('🗑️ Removiendo video');
     videoInput.value = '';
     videoPlayer.src = '';
+    videoPreview.classList.remove('show');
     videoPreview.style.display = 'none';
     videoUploadArea.style.display = 'flex';
     videoFileName.innerHTML = 'Click here to select video file';
     videoUploadArea.classList.remove('has-file');
+    updateDebug('files', 'Video removido');
 }
 
-// Prevenir comportamiento por defecto en drag & drop
-[audioUploadArea, videoUploadArea].forEach(area => {
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        area.addEventListener(eventName, preventDefaults, false);
-    });
-});
+// ========================================
+// TEST PREVIEW FUNCTION
+// ========================================
+function testPreviewFunction() {
+    console.log('🔍 Testing preview function...');
+    updateDebug('actions', 'Testing preview...');
+    
+    // Mostrar preview de audio temporalmente
+    audioPreview.innerHTML = '<div style="padding: 20px; background: yellow; color: black; font-weight: bold;">🧪 TEST AUDIO PREVIEW - Si ves esto, el CSS funciona</div>';
+    audioPreview.style.display = 'block';
+    audioPreview.style.opacity = '1';
+    
+    // Mostrar preview de video temporalmente
+    videoPreview.innerHTML = '<div style="padding: 20px; background: lime; color: black; font-weight: bold;">🧪 TEST VIDEO PREVIEW - Si ves esto, el CSS funciona</div>';
+    videoPreview.style.display = 'block';
+    videoPreview.style.opacity = '1';
+    
+    updateDebug('actions', '✅ Test previews shown');
+    showMessage('Test previews shown for 3 seconds', 'success');
+    
+    setTimeout(() => {
+        audioPreview.style.display = 'none';
+        videoPreview.style.display = 'none';
+        audioPreview.innerHTML = `
+            <div class="preview-header">
+                <svg class="icon-preview" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                </svg>
+                <strong>Audio Preview</strong>
+            </div>
+            <audio id="audioPlayer" controls></audio>
+            <button type="button" class="remove-file-btn" onclick="removeAudio()">
+                <svg class="icon-remove" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+                Remove Audio
+            </button>
+        `;
+        videoPreview.innerHTML = `
+            <div class="preview-header">
+                <svg class="icon-preview" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 001 1z"/>
+                </svg>
+                <strong>Video Preview</strong>
+            </div>
+            <video id="videoPlayer" controls></video>
+            <button type="button" class="remove-file-btn" onclick="removeVideo()">
+                <svg class="icon-remove" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+                Remove Video
+            </button>
+        `;
+        updateDebug('actions', 'Test previews hidden');
+    }, 3000);
+}
 
-function preventDefaults(e) {
+// ========================================
+// FORM SUBMIT - SIMPLIFICADO PARA DEBUG
+// ========================================
+async function handleFormSubmit(e) {
     e.preventDefault();
-    e.stopPropagation();
+    console.log('📝 Form submit started');
+    updateDebug('actions', 'Form submitting...');
+    
+    // Para debug, usar la función de test POST
+    await testPOSTRequest();
 }
 
-// Efectos visuales al arrastrar - Audio
-audioUploadArea.addEventListener('dragenter', function() {
-    this.style.borderColor = '#3b82f6';
-    this.style.background = '#dbeafe';
-});
-
-audioUploadArea.addEventListener('dragleave', function() {
-    if (!audioInput.files.length) {
-        this.style.borderColor = '#d1d5db';
-        this.style.background = '#f9fafb';
-    }
-});
-
-// Efectos visuales al arrastrar - Video
-videoUploadArea.addEventListener('dragenter', function() {
-    this.style.borderColor = '#3b82f6';
-    this.style.background = '#dbeafe';
-});
-
-videoUploadArea.addEventListener('dragleave', function() {
-    if (!videoInput.files.length) {
-        this.style.borderColor = '#d1d5db';
-        this.style.background = '#f9fafb';
-    }
-});
-
-// Manejar archivos arrastrados - Audio
-audioUploadArea.addEventListener('drop', function(e) {
-    const dt = e.dataTransfer;
-    const files = dt.files;
-    
-    if (files.length > 0) {
-        // Verificar que sea un archivo de audio
-        const file = files[0];
-        if (file.type.startsWith('audio/')) {
-            audioInput.files = files;
-            const event = new Event('change', { bubbles: true });
-            audioInput.dispatchEvent(event);
-        } else {
-            showMessage('Please select a valid audio file', 'error');
-        }
-    }
-});
-
-// Manejar archivos arrastrados - Video
-videoUploadArea.addEventListener('drop', function(e) {
-    const dt = e.dataTransfer;
-    const files = dt.files;
-    
-    if (files.length > 0) {
-        // Verificar que sea un archivo de video
-        const file = files[0];
-        if (file.type.startsWith('video/')) {
-            videoInput.files = files;
-            const event = new Event('change', { bubbles: true });
-            videoInput.dispatchEvent(event);
-        } else {
-            showMessage('Please select a valid video file', 'error');
-        }
-    }
-});
-
-// Función para mostrar mensajes
-function showMessage(message, type) {
-    statusMessage.textContent = message;
-    statusMessage.className = 'status-message show ' + type;
-    
-    // Auto-hide success and error messages after 5 seconds
-    if (type === 'success' || type === 'error') {
-        setTimeout(() => {
-            statusMessage.classList.remove('show');
-        }, 5000);
-    }
-}
-
-// Función para convertir archivo a Base64
+// ========================================
+// UTILIDADES
+// ========================================
 function fileToBase64(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -188,133 +466,31 @@ function fileToBase64(file) {
     });
 }
 
-// Manejar envío del formulario
-form.addEventListener('submit', async function(e) {
-    e.preventDefault();
+function showMessage(message, type) {
+    console.log(`💬 Message: ${type.toUpperCase()} - ${message}`);
+    statusMessage.textContent = message;
+    statusMessage.className = 'status-message show ' + type;
     
-    console.log('Form submitted'); // Debug
-    
-    // Validar campos
-    const studentName = document.getElementById('studentName').value.trim();
-    const experience = document.getElementById('experience').value.trim();
-    
-    if (!studentName || !experience) {
-        showMessage('Please fill in all required fields', 'error');
-        return;
+    if (type === 'success' || type === 'error') {
+        setTimeout(() => {
+            statusMessage.classList.remove('show');
+        }, 5000);
     }
-    
-    // Deshabilitar botón
-    submitBtn.disabled = true;
-    submitBtn.innerHTML = `
-        <svg class="icon-btn" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
-        </svg>
-        Uploading...
-    `;
-    showMessage('Processing your submission... Please wait.', 'loading');
-    
-    try {
-        // Recopilar datos
-        const formData = {
-            studentName: studentName,
-            experience: experience,
-            timestamp: new Date().toISOString()
-        };
-        
-        console.log('Basic form data:', formData); // Debug
-        
-        // Procesar audio si existe
-        if (audioInput.files.length > 0) {
-            const audioFile = audioInput.files[0];
-            showMessage('Processing audio file...', 'loading');
-            console.log('Processing audio file:', audioFile.name); // Debug
-            
-            const audioData = await fileToBase64(audioFile);
-            formData.audioFile = {
-                name: audioFile.name,
-                mimeType: audioFile.type,
-                data: audioData
-            };
-            console.log('Audio file processed'); // Debug
-        }
-        
-        // Procesar video si existe
-        if (videoInput.files.length > 0) {
-            const videoFile = videoInput.files[0];
-            showMessage('Processing video file...', 'loading');
-            console.log('Processing video file:', videoFile.name); // Debug
-            
-            const videoData = await fileToBase64(videoFile);
-            formData.videoFile = {
-                name: videoFile.name,
-                mimeType: videoFile.type,
-                data: videoData
-            };
-            console.log('Video file processed'); // Debug
-        }
-        
-        showMessage('Sending to Google Drive...', 'loading');
-        console.log('Sending data to:', SCRIPT_URL); // Debug
-        console.log('Data size:', JSON.stringify(formData).length, 'characters'); // Debug
-        
-        // Enviar a Google Apps Script
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(formData)
-        });
-        
-        console.log('Response status:', response.status); // Debug
-        
-        // Intentar leer la respuesta
-        const responseText = await response.text();
-        console.log('Response text:', responseText); // Debug
-        
-        let responseData;
-        try {
-            responseData = JSON.parse(responseText);
-            console.log('Parsed response:', responseData); // Debug
-        } catch (parseError) {
-            console.log('Could not parse response as JSON'); // Debug
-            responseData = { success: true }; // Asumir éxito si no podemos parsear
-        }
-        
-        // Mostrar éxito
-        if (responseData.success !== false) {
-            showMessage('Success! Your experience has been submitted and saved to Google Drive.', 'success');
-            
-            // Limpiar formulario
-            form.reset();
-            removeAudio();
-            removeVideo();
-        } else {
-            showMessage('Error: ' + (responseData.message || 'Unknown error occurred'), 'error');
-        }
-        
-    } catch (error) {
-        console.error('Error:', error);
-        showMessage('Error submitting your experience. Please try again. Error: ' + error.message, 'error');
-    } finally {
-        // Rehabilitar botón
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = `
-            <svg class="icon-btn" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
-            </svg>
-            Post Experience
-        `;
-    }
+}
+
+// ========================================
+// HACER FUNCIONES GLOBALES
+// ========================================
+window.removeAudio = removeAudio;
+window.removeVideo = removeVideo;
+window.testPOSTRequest = testPOSTRequest;
+
+// ========================================
+// INICIALIZAR
+// ========================================
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🏁 DOM loaded');
+    initializeApp();
 });
 
-// Debug: Verificar que todos los elementos existen al cargar la página
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Page loaded, checking elements:');
-    console.log('Audio input:', audioInput);
-    console.log('Video input:', videoInput);
-    console.log('Audio preview:', audioPreview);
-    console.log('Video preview:', videoPreview);
-    console.log('Audio upload area:', audioUploadArea);
-    console.log('Video upload area:', videoUploadArea);
-});
+console.log('📜 Script loaded');

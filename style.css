@@ -45,6 +45,72 @@ body {
     font-weight: 700;
 }
 
+/* Debug Panel - NUEVO */
+.debug-panel {
+    background: #f8f9fa;
+    border: 2px solid #dee2e6;
+    border-radius: 10px;
+    padding: 20px;
+    margin-bottom: 30px;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+}
+
+.debug-panel h3 {
+    color: #495057;
+    margin-bottom: 15px;
+    font-size: 16px;
+}
+
+.debug-panel div {
+    background: #ffffff;
+    padding: 8px 12px;
+    margin: 5px 0;
+    border-radius: 5px;
+    border-left: 4px solid #6c757d;
+}
+
+#debugStatus {
+    border-left-color: #17a2b8 !important;
+}
+
+#debugActions {
+    border-left-color: #28a745 !important;
+}
+
+#debugFiles {
+    border-left-color: #ffc107 !important;
+}
+
+#debugAPI {
+    border-left-color: #dc3545 !important;
+}
+
+/* Botones de Prueba */
+.test-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.test-btn {
+    flex: 1;
+    padding: 12px;
+    background: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.test-btn:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
 /* Formulario */
 .form-group {
     margin-bottom: 25px;
@@ -166,16 +232,28 @@ textarea {
     color: #3b82f6;
 }
 
-/* Preview de Media */
+/* Preview de Media - IMPORTANTE: CSS mejorado para debugging */
 .media-preview {
     margin-top: 20px;
     padding: 20px;
-    background: #f9fafb;
-    border: 2px solid #e5e7eb;
+    background: #f0f9ff;
+    border: 3px solid #3b82f6;
     border-radius: 12px;
     animation: fadeIn 0.3s ease;
+    
+    /* DEBUGGING: Forzar visibilidad */
+    display: none !important;
+    opacity: 0;
+    transform: translateY(-10px);
 }
 
+.media-preview.show {
+    display: block !important;
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+}
+
+/* Animación de aparición */
 @keyframes fadeIn {
     from {
         opacity: 0;
@@ -204,17 +282,18 @@ textarea {
 
 .preview-header strong {
     font-size: 16px;
+    font-weight: bold;
 }
 
 audio, video {
     width: 100%;
     border-radius: 8px;
     margin-bottom: 15px;
+    background: #000;
 }
 
 video {
     max-height: 400px;
-    background: #000;
 }
 
 .remove-file-btn {
@@ -315,6 +394,17 @@ video {
     border: 2px solid #3b82f6;
 }
 
+/* DEBUGGING: Clases especiales para verificar funcionamiento */
+.debug-visible {
+    border: 3px solid red !important;
+    background: yellow !important;
+}
+
+.debug-hidden {
+    border: 3px solid blue !important;
+    background: lightblue !important;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .upload-section {
@@ -338,5 +428,14 @@ video {
     .upload-icon {
         width: 48px;
         height: 48px;
+    }
+    
+    .test-buttons {
+        flex-direction: column;
+    }
+    
+    .debug-panel {
+        padding: 15px;
+        font-size: 12px;
     }
 }
