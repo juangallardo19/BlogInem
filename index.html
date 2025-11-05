@@ -47,7 +47,11 @@
                         accept="audio/*"
                         class="file-input"
                     >
-                    <span class="file-name" id="audioFileName">No se eligió ningún archivo</span>
+                    <div class="file-upload-area" id="audioUploadArea" onclick="document.getElementById('audioFile').click()">
+                        <div class="upload-icon">📁</div>
+                        <div class="upload-text" id="audioFileName">Click aquí para seleccionar archivo de audio</div>
+                        <div class="upload-hint">Formatos: MP3, WAV, M4A, etc.</div>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -61,7 +65,11 @@
                         accept="video/*"
                         class="file-input"
                     >
-                    <span class="file-name" id="videoFileName">No se eligió ningún archivo</span>
+                    <div class="file-upload-area" id="videoUploadArea" onclick="document.getElementById('videoFile').click()">
+                        <div class="upload-icon">📁</div>
+                        <div class="upload-text" id="videoFileName">Click aquí para seleccionar archivo de video</div>
+                        <div class="upload-hint">Formatos: MP4, MOV, AVI, etc.</div>
+                    </div>
                 </div>
 
                 <button type="submit" class="submit-btn" id="submitBtn">

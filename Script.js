@@ -1,5 +1,5 @@
-// ⚠️ IMPORTANTE: Reemplaza esta URL con la URL de tu Google Apps Script
-const SCRIPT_URL = 'https://script.google.com/a/macros/inempasto.edu.co/s/AKfycbyQXD1x37jz4n9zlGhedVD7jomKCyQpxA8v9c18g8SuA6nKnhUYah_u5ZI3bsNurBYY/exec';
+// ⚠️ IMPORTANTE: URL de tu Google Apps Script
+const SCRIPT_URL = 'https://script.google.com/a/macros/inempasto.edu.co/s/AKfycbx920VEH1x3l2kf9-DBbS8-OpWpDWQXgmTV1b-45M4KKNnanadhp8e_ke9O7BE2u0ln/exec';
 
 // Elementos del DOM
 const form = document.getElementById('experienceForm');
@@ -7,34 +7,100 @@ const audioInput = document.getElementById('audioFile');
 const videoInput = document.getElementById('videoFile');
 const audioFileName = document.getElementById('audioFileName');
 const videoFileName = document.getElementById('videoFileName');
+const audioUploadArea = document.getElementById('audioUploadArea');
+const videoUploadArea = document.getElementById('videoUploadArea');
 const submitBtn = document.getElementById('submitBtn');
 const statusMessage = document.getElementById('statusMessage');
 const experiencesList = document.getElementById('experiencesList');
 
-// Mostrar nombre de archivos seleccionados
+// Mostrar nombre de archivos seleccionados - Audio
 audioInput.addEventListener('change', function(e) {
     if (this.files.length > 0) {
-        audioFileName.textContent = this.files[0].name;
-        audioFileName.classList.add('has-file');
+        const file = this.files[0];
+        const fileSize = (file.size / 1024 / 1024).toFixed(2); // MB
+        audioFileName.innerHTML = `<strong>${file.name}</strong><br><small>Tamaño: ${fileSize} MB</small>`;
+        audioUploadArea.classList.add('has-file');
     } else {
-        audioFileName.textContent = 'No se eligió ningún archivo';
-        audioFileName.classList.remove('has-file');
+        audioFileName.innerHTML = 'Click aquí para seleccionar archivo de audio';
+        audioUploadArea.classList.remove('has-file');
     }
 });
 
+// Mostrar nombre de archivos seleccionados - Video
 videoInput.addEventListener('change', function(e) {
     if (this.files.length > 0) {
-        videoFileName.textContent = this.files[0].name;
-        videoFileName.classList.add('has-file');
+        const file = this.files[0];
+        const fileSize = (file.size / 1024 / 1024).toFixed(2); // MB
+        videoFileName.innerHTML = `<strong>${file.name}</strong><br><small>Tamaño: ${fileSize} MB</small>`;
+        videoUploadArea.classList.add('has-file');
     } else {
-        videoFileName.textContent = 'No se eligió ningún archivo';
-        videoFileName.classList.remove('has-file');
+        videoFileName.innerHTML = 'Click aquí para seleccionar archivo de video';
+        videoUploadArea.classList.remove('has-file');
     }
 });
 
-// Hacer los labels clickeables
-audioFileName.addEventListener('click', () => audioInput.click());
-videoFileName.addEventListener('click', () => videoInput.click());
+// Prevenir comportamiento por defecto en el área de drop
+[audioUploadArea, videoUploadArea].forEach(area => {
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        area.addEventListener(eventName, preventDefaults, false);
+    });
+});
+
+function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+}
+
+// Efectos visuales al arrastrar archivos
+audioUploadArea.addEventListener('dragenter', function() {
+    this.style.borderColor = '#3b82f6';
+    this.style.background = '#dbeafe';
+});
+
+audioUploadArea.addEventListener('dragleave', function() {
+    if (!audioInput.files.length) {
+        this.style.borderColor = '#d1d5db';
+        this.style.background = '#f9fafb';
+    }
+});
+
+videoUploadArea.addEventListener('dragenter', function() {
+    this.style.borderColor = '#3b82f6';
+    this.style.background = '#dbeafe';
+});
+
+videoUploadArea.addEventListener('dragleave', function() {
+    if (!videoInput.files.length) {
+        this.style.borderColor = '#d1d5db';
+        this.style.background = '#f9fafb';
+    }
+});
+
+// Manejar archivos arrastrados - Audio
+audioUploadArea.addEventListener('drop', function(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    
+    if (files.length > 0) {
+        audioInput.files = files;
+        // Disparar evento change manualmente
+        const event = new Event('change', { bubbles: true });
+        audioInput.dispatchEvent(event);
+    }
+});
+
+// Manejar archivos arrastrados - Video
+videoUploadArea.addEventListener('drop', function(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+    
+    if (files.length > 0) {
+        videoInput.files = files;
+        // Disparar evento change manualmente
+        const event = new Event('change', { bubbles: true });
+        videoInput.dispatchEvent(event);
+    }
+});
 
 // Función para mostrar mensajes
 function showMessage(message, type) {
@@ -120,10 +186,10 @@ form.addEventListener('submit', async function(e) {
         
         // Limpiar formulario
         form.reset();
-        audioFileName.textContent = 'No se eligió ningún archivo';
-        videoFileName.textContent = 'No se eligió ningún archivo';
-        audioFileName.classList.remove('has-file');
-        videoFileName.classList.remove('has-file');
+        audioFileName.innerHTML = 'Click aquí para seleccionar archivo de audio';
+        videoFileName.innerHTML = 'Click aquí para seleccionar archivo de video';
+        audioUploadArea.classList.remove('has-file');
+        videoUploadArea.classList.remove('has-file');
         
         // Recargar experiencias
         setTimeout(() => {
