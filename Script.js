@@ -1,5 +1,5 @@
-// URL de tu Google Apps Script
-const SCRIPT_URL = 'https://script.google.com/a/macros/inempasto.edu.co/s/AKfycbyQXD1x37jz4n9zlGhedVD7jomKCyQpxA8v9c18g8SuA6nKnhUYah_u5ZI3bsNurBYY/exec';
+// URL de tu Google Apps Script - ACTUALIZA ESTA URL CON LA NUEVA
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyQXD1x37jz4n9zlGhedVD7jomKCyQpxA8v9c18g8SuA6nKnhUYah_u5ZI3bsNurBYY/exec';
 
 // Elementos del DOM
 const form = document.getElementById('experienceForm');
@@ -18,9 +18,12 @@ const statusMessage = document.getElementById('statusMessage');
 
 // Manejo de archivos de audio
 audioInput.addEventListener('change', function(e) {
+    console.log('Audio file selected:', this.files.length); // Debug
     if (this.files.length > 0) {
         const file = this.files[0];
         const fileSize = (file.size / 1024 / 1024).toFixed(2);
+        
+        console.log('Audio file details:', file.name, file.type, fileSize + ' MB'); // Debug
         
         // Actualizar texto
         audioFileName.innerHTML = `<strong>${file.name}</strong><br><small>Size: ${fileSize} MB</small>`;
@@ -33,14 +36,19 @@ audioInput.addEventListener('change', function(e) {
         
         // Ocultar área de upload
         audioUploadArea.style.display = 'none';
+        
+        console.log('Audio preview should be visible now'); // Debug
     }
 });
 
 // Manejo de archivos de video
 videoInput.addEventListener('change', function(e) {
+    console.log('Video file selected:', this.files.length); // Debug
     if (this.files.length > 0) {
         const file = this.files[0];
         const fileSize = (file.size / 1024 / 1024).toFixed(2);
+        
+        console.log('Video file details:', file.name, file.type, fileSize + ' MB'); // Debug
         
         // Actualizar texto
         videoFileName.innerHTML = `<strong>${file.name}</strong><br><small>Size: ${fileSize} MB</small>`;
@@ -53,11 +61,14 @@ videoInput.addEventListener('change', function(e) {
         
         // Ocultar área de upload
         videoUploadArea.style.display = 'none';
+        
+        console.log('Video preview should be visible now'); // Debug
     }
 });
 
 // Función para remover audio
 function removeAudio() {
+    console.log('Removing audio file'); // Debug
     audioInput.value = '';
     audioPlayer.src = '';
     audioPreview.style.display = 'none';
@@ -68,6 +79,7 @@ function removeAudio() {
 
 // Función para remover video
 function removeVideo() {
+    console.log('Removing video file'); // Debug
     videoInput.value = '';
     videoPlayer.src = '';
     videoPreview.style.display = 'none';
@@ -120,9 +132,15 @@ audioUploadArea.addEventListener('drop', function(e) {
     const files = dt.files;
     
     if (files.length > 0) {
-        audioInput.files = files;
-        const event = new Event('change', { bubbles: true });
-        audioInput.dispatchEvent(event);
+        // Verificar que sea un archivo de audio
+        const file = files[0];
+        if (file.type.startsWith('audio/')) {
+            audioInput.files = files;
+            const event = new Event('change', { bubbles: true });
+            audioInput.dispatchEvent(event);
+        } else {
+            showMessage('Please select a valid audio file', 'error');
+        }
     }
 });
 
@@ -132,9 +150,15 @@ videoUploadArea.addEventListener('drop', function(e) {
     const files = dt.files;
     
     if (files.length > 0) {
-        videoInput.files = files;
-        const event = new Event('change', { bubbles: true });
-        videoInput.dispatchEvent(event);
+        // Verificar que sea un archivo de video
+        const file = files[0];
+        if (file.type.startsWith('video/')) {
+            videoInput.files = files;
+            const event = new Event('change', { bubbles: true });
+            videoInput.dispatchEvent(event);
+        } else {
+            showMessage('Please select a valid video file', 'error');
+        }
     }
 });
 
@@ -143,6 +167,7 @@ function showMessage(message, type) {
     statusMessage.textContent = message;
     statusMessage.className = 'status-message show ' + type;
     
+    // Auto-hide success and error messages after 5 seconds
     if (type === 'success' || type === 'error') {
         setTimeout(() => {
             statusMessage.classList.remove('show');
@@ -166,6 +191,8 @@ function fileToBase64(file) {
 // Manejar envío del formulario
 form.addEventListener('submit', async function(e) {
     e.preventDefault();
+    
+    console.log('Form submitted'); // Debug
     
     // Validar campos
     const studentName = document.getElementById('studentName').value.trim();
@@ -194,51 +221,81 @@ form.addEventListener('submit', async function(e) {
             timestamp: new Date().toISOString()
         };
         
+        console.log('Basic form data:', formData); // Debug
+        
         // Procesar audio si existe
         if (audioInput.files.length > 0) {
             const audioFile = audioInput.files[0];
             showMessage('Processing audio file...', 'loading');
+            console.log('Processing audio file:', audioFile.name); // Debug
+            
+            const audioData = await fileToBase64(audioFile);
             formData.audioFile = {
                 name: audioFile.name,
                 mimeType: audioFile.type,
-                data: await fileToBase64(audioFile)
+                data: audioData
             };
+            console.log('Audio file processed'); // Debug
         }
         
         // Procesar video si existe
         if (videoInput.files.length > 0) {
             const videoFile = videoInput.files[0];
             showMessage('Processing video file...', 'loading');
+            console.log('Processing video file:', videoFile.name); // Debug
+            
+            const videoData = await fileToBase64(videoFile);
             formData.videoFile = {
                 name: videoFile.name,
                 mimeType: videoFile.type,
-                data: await fileToBase64(videoFile)
+                data: videoData
             };
+            console.log('Video file processed'); // Debug
         }
         
         showMessage('Sending to Google Drive...', 'loading');
+        console.log('Sending data to:', SCRIPT_URL); // Debug
+        console.log('Data size:', JSON.stringify(formData).length, 'characters'); // Debug
         
         // Enviar a Google Apps Script
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(formData)
         });
         
-        // Mostrar éxito
-        showMessage('Success! Your experience has been submitted and saved to Google Drive.', 'success');
+        console.log('Response status:', response.status); // Debug
         
-        // Limpiar formulario
-        form.reset();
-        removeAudio();
-        removeVideo();
+        // Intentar leer la respuesta
+        const responseText = await response.text();
+        console.log('Response text:', responseText); // Debug
+        
+        let responseData;
+        try {
+            responseData = JSON.parse(responseText);
+            console.log('Parsed response:', responseData); // Debug
+        } catch (parseError) {
+            console.log('Could not parse response as JSON'); // Debug
+            responseData = { success: true }; // Asumir éxito si no podemos parsear
+        }
+        
+        // Mostrar éxito
+        if (responseData.success !== false) {
+            showMessage('Success! Your experience has been submitted and saved to Google Drive.', 'success');
+            
+            // Limpiar formulario
+            form.reset();
+            removeAudio();
+            removeVideo();
+        } else {
+            showMessage('Error: ' + (responseData.message || 'Unknown error occurred'), 'error');
+        }
         
     } catch (error) {
         console.error('Error:', error);
-        showMessage('Error submitting your experience. Please try again.', 'error');
+        showMessage('Error submitting your experience. Please try again. Error: ' + error.message, 'error');
     } finally {
         // Rehabilitar botón
         submitBtn.disabled = false;
@@ -249,4 +306,15 @@ form.addEventListener('submit', async function(e) {
             Post Experience
         `;
     }
+});
+
+// Debug: Verificar que todos los elementos existen al cargar la página
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Page loaded, checking elements:');
+    console.log('Audio input:', audioInput);
+    console.log('Video input:', videoInput);
+    console.log('Audio preview:', audioPreview);
+    console.log('Video preview:', videoPreview);
+    console.log('Audio upload area:', audioUploadArea);
+    console.log('Video upload area:', videoUploadArea);
 });
