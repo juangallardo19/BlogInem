@@ -1,7 +1,7 @@
 // ========================================
 // CONFIGURACIÓN PRINCIPAL
 // ========================================
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwy2oOrX7th7BDKz-ur6FIJ2kJ-AxThovse1c70cd_-YyNezI_7_juyG8bM2mshmxlE/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwXw539hnt9fu-VAvNhiSesNPVi7wkLKWElbxNlgo0K9qIkOu16XZyDIteq3mX60XVa/exec';
 
 console.log('🚀 Student Experience App - INICIANDO');
 console.log('📍 Script URL:', SCRIPT_URL);
@@ -500,13 +500,20 @@ async function handleFormSubmit(e) {
         if (debugAPI) updateDebug('api', '✅ POST sent successfully');
         
         showMessage('Success! Your experience has been submitted and saved to Google Drive.', 'success');
-        
+
         // Limpiar formulario
         if (form) form.reset();
         removeAudio();
         removeVideo();
-        
+
         console.log('🎉 Form submitted successfully');
+
+        // Recargar experiencias en el foro
+        if (typeof loadExperiences === 'function') {
+            setTimeout(() => {
+                loadExperiences();
+            }, 1000);
+        }
         
     } catch (error) {
         console.error('❌ Error en envío:', error);
@@ -567,6 +574,511 @@ window.removeVideo = removeVideo;
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🏁 DOM loaded - Initializing app...');
     initializeApp();
+    initializeForum();
 });
 
 console.log('📜 Script loaded successfully - Student Experience App v1.0');
+
+// ========================================
+// FUNCIONALIDAD DEL FORO
+// ========================================
+
+// Variables globales del foro
+let allExperiences = [];
+let filteredExperiences = [];
+let currentPage = 1;
+const ITEMS_PER_PAGE = 5;
+let isAdminMode = false;
+
+// Elementos DOM del foro
+let experiencesContainer, loadingSpinner, emptyState;
+let searchInput, pagination, prevBtn, nextBtn, paginationInfo;
+let adminBtn, adminBanner, logoutBtn;
+let adminModal, adminPassword, modalCancelBtn, modalConfirmBtn, modalError;
+
+// Inicializar el foro
+function initializeForum() {
+    console.log('📚 Inicializando foro...');
+
+    // Obtener elementos DOM
+    experiencesContainer = document.getElementById('experiencesContainer');
+    loadingSpinner = document.getElementById('loadingSpinner');
+    emptyState = document.getElementById('emptyState');
+    searchInput = document.getElementById('searchInput');
+    pagination = document.getElementById('pagination');
+    prevBtn = document.getElementById('prevBtn');
+    nextBtn = document.getElementById('nextBtn');
+    paginationInfo = document.getElementById('paginationInfo');
+    adminBtn = document.getElementById('adminBtn');
+    adminBanner = document.getElementById('adminBanner');
+    logoutBtn = document.getElementById('logoutBtn');
+    adminModal = document.getElementById('adminModal');
+    adminPassword = document.getElementById('adminPassword');
+    modalCancelBtn = document.getElementById('modalCancelBtn');
+    modalConfirmBtn = document.getElementById('modalConfirmBtn');
+    modalError = document.getElementById('modalError');
+
+    // Event listeners
+    if (searchInput) {
+        searchInput.addEventListener('input', handleSearch);
+    }
+
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => changePage(-1));
+    }
+
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => changePage(1));
+    }
+
+    if (adminBtn) {
+        adminBtn.addEventListener('click', openAdminModal);
+    }
+
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+    }
+
+    if (modalCancelBtn) {
+        modalCancelBtn.addEventListener('click', closeAdminModal);
+    }
+
+    if (modalConfirmBtn) {
+        modalConfirmBtn.addEventListener('click', handleAdminLogin);
+    }
+
+    if (adminPassword) {
+        adminPassword.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleAdminLogin();
+            }
+        });
+    }
+
+    // Verificar si ya está en modo admin (sessionStorage)
+    const storedAdminMode = sessionStorage.getItem('isAdmin');
+    if (storedAdminMode === 'true') {
+        isAdminMode = true;
+        showAdminBanner();
+    }
+
+    // Cargar experiencias
+    loadExperiences();
+
+    console.log('✅ Foro inicializado');
+}
+
+// Cargar experiencias desde la API
+async function loadExperiences() {
+    console.log('🔄 Cargando experiencias...');
+
+    try {
+        // Mostrar loading
+        if (loadingSpinner) loadingSpinner.style.display = 'flex';
+        if (emptyState) emptyState.style.display = 'none';
+
+        // Limpiar container (excepto loading y empty state)
+        const cards = experiencesContainer.querySelectorAll('.experience-card');
+        cards.forEach(card => card.remove());
+
+        // Hacer petición GET
+        const response = await fetch(`${SCRIPT_URL}?action=getExperiencias`, {
+            method: 'GET'
+        });
+
+        const data = await response.json();
+
+        console.log('📊 Respuesta de API:', data);
+
+        if (data.success && data.data) {
+            allExperiences = data.data;
+            filteredExperiences = [...allExperiences];
+            currentPage = 1;
+
+            console.log(`✅ ${allExperiences.length} experiencias cargadas`);
+
+            // Mostrar experiencias
+            displayExperiences();
+        } else {
+            throw new Error(data.message || 'Error loading experiences');
+        }
+
+    } catch (error) {
+        console.error('❌ Error cargando experiencias:', error);
+
+        // Mostrar empty state
+        if (loadingSpinner) loadingSpinner.style.display = 'none';
+        if (emptyState) {
+            emptyState.style.display = 'flex';
+            emptyState.querySelector('h3').textContent = 'Error Loading Experiences';
+            emptyState.querySelector('p').textContent = error.message;
+        }
+    }
+}
+
+// Mostrar experiencias en la página actual
+function displayExperiences() {
+    console.log('🎨 Mostrando experiencias...');
+
+    // Ocultar loading
+    if (loadingSpinner) loadingSpinner.style.display = 'none';
+
+    // Limpiar cards existentes
+    const cards = experiencesContainer.querySelectorAll('.experience-card');
+    cards.forEach(card => card.remove());
+
+    // Verificar si hay experiencias
+    if (filteredExperiences.length === 0) {
+        if (emptyState) {
+            emptyState.style.display = 'flex';
+            emptyState.querySelector('h3').textContent = 'No Publications Yet';
+            emptyState.querySelector('p').textContent = 'Be the first to share your English learning experience!';
+        }
+        if (pagination) pagination.style.display = 'none';
+        return;
+    }
+
+    // Ocultar empty state
+    if (emptyState) emptyState.style.display = 'none';
+
+    // Calcular paginación
+    const totalPages = Math.ceil(filteredExperiences.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const endIndex = startIndex + ITEMS_PER_PAGE;
+    const currentExperiences = filteredExperiences.slice(startIndex, endIndex);
+
+    console.log(`📄 Página ${currentPage}/${totalPages} - Mostrando ${currentExperiences.length} experiencias`);
+
+    // Crear cards
+    currentExperiences.forEach(exp => {
+        const card = createExperienceCard(exp);
+        // Insertar antes del loading spinner
+        experiencesContainer.insertBefore(card, loadingSpinner);
+    });
+
+    // Actualizar paginación
+    updatePagination(totalPages);
+}
+
+// Crear card de experiencia
+function createExperienceCard(exp) {
+    const card = document.createElement('div');
+    card.className = 'experience-card';
+    card.dataset.id = exp.id;
+
+    // Formatear fecha
+    const date = new Date(exp.timestamp);
+    const formattedDate = date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    // Botón de eliminar (solo en modo admin)
+    const deleteButton = isAdminMode ? `
+        <button type="button" class="delete-btn" onclick="deleteExperience('${exp.id}')">
+            <svg class="icon-btn-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+            Delete
+        </button>
+    ` : '';
+
+    // Media (audio/video)
+    let mediaHTML = '';
+    if (exp.audioUrl || exp.videoUrl) {
+        mediaHTML = '<div class="experience-media">';
+
+        if (exp.audioUrl) {
+            mediaHTML += `
+                <div class="media-item">
+                    <div class="media-label">
+                        <svg class="icon-btn-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                        </svg>
+                        Audio Recording
+                    </div>
+                    <audio controls src="${exp.audioUrl}"></audio>
+                </div>
+            `;
+        }
+
+        if (exp.videoUrl) {
+            mediaHTML += `
+                <div class="media-item">
+                    <div class="media-label">
+                        <svg class="icon-btn-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                        Video Recording
+                    </div>
+                    <video controls src="${exp.videoUrl}"></video>
+                </div>
+            `;
+        }
+
+        mediaHTML += '</div>';
+    }
+
+    card.innerHTML = `
+        <div class="experience-header">
+            <div class="experience-info">
+                <h3 class="experience-student">${escapeHtml(exp.studentName)}</h3>
+                <div class="experience-date">${formattedDate}</div>
+            </div>
+            ${deleteButton}
+        </div>
+        <div class="experience-text">${escapeHtml(exp.experience)}</div>
+        ${mediaHTML}
+    `;
+
+    return card;
+}
+
+// Eliminar experiencia (solo admin)
+async function deleteExperience(id) {
+    if (!isAdminMode) {
+        alert('Unauthorized access');
+        return;
+    }
+
+    // Confirmar
+    const exp = allExperiences.find(e => e.id === id);
+    if (!exp) return;
+
+    const confirmed = confirm(`Are you sure you want to delete the experience from "${exp.studentName}"?\n\nThis action cannot be undone.`);
+    if (!confirmed) return;
+
+    console.log('🗑️ Eliminando experiencia:', id);
+
+    try {
+        showMessage('Deleting experience...', 'loading');
+
+        // Obtener contraseña del sessionStorage
+        const password = sessionStorage.getItem('adminPassword');
+
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'deleteExperiencia',
+                id: id,
+                password: password
+            })
+        });
+
+        const data = await response.json();
+
+        console.log('📊 Respuesta delete:', data);
+
+        if (data.success) {
+            showMessage('Experience deleted successfully', 'success');
+            console.log('✅ Experiencia eliminada');
+
+            // Recargar experiencias
+            await loadExperiences();
+        } else {
+            throw new Error(data.message || 'Error deleting experience');
+        }
+
+    } catch (error) {
+        console.error('❌ Error eliminando:', error);
+        showMessage(`Error: ${error.message}`, 'error');
+    }
+}
+
+// Buscar experiencias
+function handleSearch(e) {
+    const searchTerm = e.target.value.toLowerCase().trim();
+
+    console.log('🔍 Buscando:', searchTerm);
+
+    if (!searchTerm) {
+        filteredExperiences = [...allExperiences];
+    } else {
+        filteredExperiences = allExperiences.filter(exp =>
+            exp.studentName.toLowerCase().includes(searchTerm)
+        );
+    }
+
+    currentPage = 1;
+    displayExperiences();
+}
+
+// Cambiar página
+function changePage(delta) {
+    currentPage += delta;
+    displayExperiences();
+}
+
+// Actualizar paginación
+function updatePagination(totalPages) {
+    if (!pagination || !prevBtn || !nextBtn || !paginationInfo) return;
+
+    if (totalPages <= 1) {
+        pagination.style.display = 'none';
+        return;
+    }
+
+    pagination.style.display = 'flex';
+
+    // Actualizar botones
+    prevBtn.disabled = currentPage === 1;
+    nextBtn.disabled = currentPage === totalPages;
+
+    // Actualizar info
+    paginationInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+}
+
+// Abrir modal de admin
+function openAdminModal() {
+    console.log('🔐 Abriendo modal de admin...');
+
+    if (adminModal) {
+        adminModal.style.display = 'flex';
+    }
+    if (adminPassword) {
+        adminPassword.value = '';
+        adminPassword.focus();
+    }
+    if (modalError) {
+        modalError.style.display = 'none';
+    }
+}
+
+// Cerrar modal de admin
+function closeAdminModal() {
+    console.log('❌ Cerrando modal de admin...');
+
+    if (adminModal) {
+        adminModal.style.display = 'none';
+    }
+    if (adminPassword) {
+        adminPassword.value = '';
+    }
+    if (modalError) {
+        modalError.style.display = 'none';
+    }
+}
+
+// Login de admin
+async function handleAdminLogin() {
+    const password = adminPassword ? adminPassword.value : '';
+
+    if (!password) {
+        showModalError('Please enter a password');
+        return;
+    }
+
+    console.log('🔐 Validando credenciales...');
+
+    try {
+        // Deshabilitar botón
+        if (modalConfirmBtn) modalConfirmBtn.disabled = true;
+
+        const response = await fetch(SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                action: 'validateAdmin',
+                password: password
+            })
+        });
+
+        const data = await response.json();
+
+        console.log('📊 Respuesta validación:', data);
+
+        if (data.success && data.data && data.data.valid) {
+            console.log('✅ Credenciales válidas');
+
+            // Activar modo admin
+            isAdminMode = true;
+            sessionStorage.setItem('isAdmin', 'true');
+            sessionStorage.setItem('adminPassword', password);
+
+            // Cerrar modal
+            closeAdminModal();
+
+            // Mostrar banner
+            showAdminBanner();
+
+            // Recargar experiencias para mostrar botones de eliminar
+            displayExperiences();
+
+            showMessage('Administrator access granted', 'success');
+        } else {
+            showModalError('Invalid password. Please try again.');
+        }
+
+    } catch (error) {
+        console.error('❌ Error en login:', error);
+        showModalError('Error validating credentials');
+    } finally {
+        // Rehabilitar botón
+        if (modalConfirmBtn) modalConfirmBtn.disabled = false;
+    }
+}
+
+// Logout de admin
+function handleLogout() {
+    console.log('👋 Cerrando sesión de admin...');
+
+    isAdminMode = false;
+    sessionStorage.removeItem('isAdmin');
+    sessionStorage.removeItem('adminPassword');
+
+    hideAdminBanner();
+    displayExperiences();
+
+    showMessage('Logged out successfully', 'success');
+}
+
+// Mostrar banner de admin
+function showAdminBanner() {
+    if (adminBanner) {
+        adminBanner.style.display = 'flex';
+    }
+    if (adminBtn) {
+        adminBtn.style.display = 'none';
+    }
+}
+
+// Ocultar banner de admin
+function hideAdminBanner() {
+    if (adminBanner) {
+        adminBanner.style.display = 'none';
+    }
+    if (adminBtn) {
+        adminBtn.style.display = 'flex';
+    }
+}
+
+// Mostrar error en modal
+function showModalError(message) {
+    if (modalError) {
+        modalError.textContent = message;
+        modalError.style.display = 'block';
+    }
+}
+
+// Escape HTML para prevenir XSS
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// Hacer deleteExperience global para que funcione con onclick
+window.deleteExperience = deleteExperience;
