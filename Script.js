@@ -800,12 +800,13 @@ function createExperienceCard(exp) {
         </button>
     ` : '';
 
-    // Media (audio/video)
+    // Media (audio/video) - Convertir URLs de Google Drive a URLs directas
     let mediaHTML = '';
     if (exp.audioUrl || exp.videoUrl) {
         mediaHTML = '<div class="experience-media">';
 
         if (exp.audioUrl) {
+            const audioDirectUrl = getDirectDriveUrl(exp.audioUrl);
             mediaHTML += `
                 <div class="media-item">
                     <div class="media-label">
@@ -814,12 +815,18 @@ function createExperienceCard(exp) {
                         </svg>
                         Audio Recording
                     </div>
-                    <audio controls src="${exp.audioUrl}"></audio>
+                    <audio controls src="${audioDirectUrl}">
+                        Your browser does not support the audio element.
+                    </audio>
+                    <a href="${exp.audioUrl}" target="_blank" style="font-size: 12px; color: #012169; text-decoration: none; display: block; margin-top: 8px;">
+                        📎 Open in Google Drive
+                    </a>
                 </div>
             `;
         }
 
         if (exp.videoUrl) {
+            const videoDirectUrl = getDirectDriveUrl(exp.videoUrl);
             mediaHTML += `
                 <div class="media-item">
                     <div class="media-label">
@@ -828,7 +835,12 @@ function createExperienceCard(exp) {
                         </svg>
                         Video Recording
                     </div>
-                    <video controls src="${exp.videoUrl}"></video>
+                    <video controls src="${videoDirectUrl}">
+                        Your browser does not support the video element.
+                    </video>
+                    <a href="${exp.videoUrl}" target="_blank" style="font-size: 12px; color: #012169; text-decoration: none; display: block; margin-top: 8px;">
+                        📎 Open in Google Drive
+                    </a>
                 </div>
             `;
         }
@@ -1083,6 +1095,39 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// Convertir URL de Google Drive a URL directa para reproducción
+function getDirectDriveUrl(driveUrl) {
+    if (!driveUrl) return null;
+
+    // Si ya es una URL directa, devolverla
+    if (driveUrl.includes('/uc?')) {
+        return driveUrl;
+    }
+
+    // Extraer el FILE_ID de diferentes formatos de URL de Google Drive
+    let fileId = null;
+
+    // Formato 1: https://drive.google.com/file/d/FILE_ID/view
+    const match1 = driveUrl.match(/\/file\/d\/([^\/]+)/);
+    if (match1) {
+        fileId = match1[1];
+    }
+
+    // Formato 2: https://drive.google.com/open?id=FILE_ID
+    const match2 = driveUrl.match(/[?&]id=([^&]+)/);
+    if (match2) {
+        fileId = match2[1];
+    }
+
+    // Si encontramos el ID, crear URL directa
+    if (fileId) {
+        return `https://drive.google.com/uc?export=download&id=${fileId}`;
+    }
+
+    // Si no pudimos extraer el ID, devolver la URL original
+    return driveUrl;
 }
 
 // Hacer deleteExperience global para que funcione con onclick
