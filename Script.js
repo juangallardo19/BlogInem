@@ -980,15 +980,9 @@ async function handleAdminLogin() {
         // Deshabilitar botón
         if (modalConfirmBtn) modalConfirmBtn.disabled = true;
 
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'validateAdmin',
-                password: password
-            })
+        // USAR GET EN LUGAR DE POST PARA EVITAR CORS
+        const response = await fetch(`${SCRIPT_URL}?action=validateAdmin&password=${encodeURIComponent(password)}`, {
+            method: 'GET'
         });
 
         const data = await response.json();
@@ -1019,7 +1013,7 @@ async function handleAdminLogin() {
 
     } catch (error) {
         console.error('❌ Error en login:', error);
-        showModalError('Error validating credentials');
+        showModalError('Error validating credentials: ' + error.message);
     } finally {
         // Rehabilitar botón
         if (modalConfirmBtn) modalConfirmBtn.disabled = false;
