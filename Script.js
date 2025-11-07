@@ -446,12 +446,14 @@ function generatePublicationHTML(pub) {
                         </svg>
                         ID: ${pub.id.split('-')[1]}
                     </span>
-                    ${pub.mediaInfo ? `
+                    ${pub.mediaInfo && (pub.mediaInfo.hasAudio || pub.mediaInfo.hasVideo) ? `
                         <span class="stat-item">
                             <svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4"/>
                             </svg>
-                            Media: ${pub.mediaInfo.hasAudio ? '🎵' : ''}${pub.mediaInfo.hasVideo ? '🎥' : ''}
+                            Media:
+                            ${pub.mediaInfo.hasAudio ? '<svg class="icon-inline-small" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>' : ''}
+                            ${pub.mediaInfo.hasVideo ? '<svg class="icon-inline-small" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>' : ''}
                         </span>
                     ` : ''}
                 </div>
@@ -472,160 +474,80 @@ function generatePublicationHTML(pub) {
 }
 
 // ========================================
-// GENERAR HTML DE MEDIOS - MEJORADO
+// GENERAR HTML DE MEDIOS - SOLO LINKS
 // ========================================
 
 function generateMediaHTMLImproved(pub) {
     let mediaHTML = '';
-    
+
     if (!pub.audioUrl && !pub.videoUrl) {
         console.log(`ℹ️ Publicación ${pub.id}: Sin archivos multimedia`);
         return mediaHTML;
     }
-    
-    console.log(`🎬 Publicación ${pub.id}: Generando HTML para medios`);
-    
+
+    console.log(`🎬 Publicación ${pub.id}: Generando links para medios`);
+
     mediaHTML += '<div class="media-section">';
-    
+
     if (pub.audioUrl && pub.audioUrl.trim() !== '') {
-        console.log(`🎵 Agregando audio para ${pub.id}: ${pub.audioUrl.substring(0, 50)}...`);
-        
-        const directAudioUrl = convertDriveUrlForPlayback(pub.audioUrl);
-        
+        console.log(`🎵 Agregando link de audio para ${pub.id}`);
+
         mediaHTML += `
-            <div class="media-item">
-                <div class="media-header">
-                    <svg class="icon-media" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <a href="${pub.audioUrl}" target="_blank" class="media-link audio-link">
+                <div class="media-link-icon">
+                    <svg class="icon-media-link" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
                     </svg>
-                    <strong>Grabación de Audio</strong>
-                    ${pub.mediaInfo && pub.mediaInfo.audioFileName ? `<span class="file-name">${pub.mediaInfo.audioFileName}</span>` : ''}
                 </div>
-                <audio class="media-player" controls preload="metadata" data-original-url="${pub.audioUrl}">
-                    <source src="${directAudioUrl}" type="audio/mpeg">
-                    <source src="${directAudioUrl}" type="audio/mp3">
-                    <source src="${directAudioUrl}" type="audio/wav">
-                    <p>Tu navegador no soporta audio. <a href="${pub.audioUrl}" target="_blank">Descargar archivo</a></p>
-                </audio>
-                <div class="media-actions">
-                    <a href="${pub.audioUrl}" target="_blank" class="download-btn" title="Abrir en Drive">
-                        <svg class="icon-btn-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                        </svg>
-                        Abrir en Drive
-                    </a>
+                <div class="media-link-content">
+                    <strong class="media-link-title">Audio Recording</strong>
+                    ${pub.mediaInfo && pub.mediaInfo.audioFileName ? `<span class="media-link-filename">${pub.mediaInfo.audioFileName}</span>` : '<span class="media-link-filename">Click to open audio file</span>'}
                 </div>
-            </div>
+                <div class="media-link-arrow">
+                    <svg class="icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                </div>
+            </a>
         `;
     }
-    
+
     if (pub.videoUrl && pub.videoUrl.trim() !== '') {
-        console.log(`🎥 Agregando video para ${pub.id}: ${pub.videoUrl.substring(0, 50)}...`);
-        
-        const directVideoUrl = convertDriveUrlForPlayback(pub.videoUrl);
-        
+        console.log(`🎥 Agregando link de video para ${pub.id}`);
+
         mediaHTML += `
-            <div class="media-item">
-                <div class="media-header">
-                    <svg class="icon-media" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <a href="${pub.videoUrl}" target="_blank" class="media-link video-link">
+                <div class="media-link-icon">
+                    <svg class="icon-media-link" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
                     </svg>
-                    <strong>Grabación de Video</strong>
-                    ${pub.mediaInfo && pub.mediaInfo.videoFileName ? `<span class="file-name">${pub.mediaInfo.videoFileName}</span>` : ''}
                 </div>
-                <video class="media-player" controls preload="metadata" data-original-url="${pub.videoUrl}">
-                    <source src="${directVideoUrl}" type="video/mp4">
-                    <source src="${directVideoUrl}" type="video/webm">
-                    <source src="${directVideoUrl}" type="video/mov">
-                    <p>Tu navegador no soporta video. <a href="${pub.videoUrl}" target="_blank">Descargar archivo</a></p>
-                </video>
-                <div class="media-actions">
-                    <a href="${pub.videoUrl}" target="_blank" class="download-btn" title="Abrir en Drive">
-                        <svg class="icon-btn-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
-                        </svg>
-                        Abrir en Drive
-                    </a>
+                <div class="media-link-content">
+                    <strong class="media-link-title">Video Recording</strong>
+                    ${pub.mediaInfo && pub.mediaInfo.videoFileName ? `<span class="media-link-filename">${pub.mediaInfo.videoFileName}</span>` : '<span class="media-link-filename">Click to open video file</span>'}
                 </div>
-            </div>
+                <div class="media-link-arrow">
+                    <svg class="icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                </div>
+            </a>
         `;
     }
-    
+
     mediaHTML += '</div>';
-    
+
     return mediaHTML;
 }
 
 // ========================================
-// CONVERSIÓN DE URLS - MEJORADO
+// SETUP MEDIA LINKS
 // ========================================
 
-function convertDriveUrlForPlayback(driveUrl) {
-    if (!driveUrl || !driveUrl.includes('drive.google.com')) {
-        return driveUrl;
-    }
-    
-    console.log(`🔗 Convirtiendo URL: ${driveUrl.substring(0, 80)}...`);
-    
-    // Extraer ID del archivo
-    let fileId = '';
-    
-    // Formato 1: https://drive.google.com/file/d/ID/view
-    let match = driveUrl.match(/\/file\/d\/([a-zA-Z0-9-_]+)/);
-    if (match) {
-        fileId = match[1];
-    } else {
-        // Formato 2: https://drive.google.com/open?id=ID
-        match = driveUrl.match(/[?&]id=([a-zA-Z0-9-_]+)/);
-        if (match) {
-            fileId = match[1];
-        }
-    }
-    
-    if (fileId) {
-        // URL directa para reproducción
-        const directUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-        console.log(`✅ URL convertida: ${directUrl}`);
-        return directUrl;
-    }
-    
-    console.log(`⚠️ No se pudo extraer ID de: ${driveUrl}`);
-    return driveUrl;
-}
-
 function setupMediaPlayers() {
-    const mediaPlayers = document.querySelectorAll('.media-player');
-    console.log(`🎬 Configurando ${mediaPlayers.length} reproductores multimedia`);
-    
-    mediaPlayers.forEach((player, index) => {
-        player.addEventListener('loadstart', () => {
-            console.log(`📡 Reproductor ${index}: Iniciando carga`);
-        });
-        
-        player.addEventListener('loadeddata', () => {
-            console.log(`✅ Reproductor ${index}: Datos cargados`);
-        });
-        
-        player.addEventListener('error', (e) => {
-            console.warn(`❌ Reproductor ${index}: Error`, e.target.error);
-            
-            const mediaItem = player.closest('.media-item');
-            if (mediaItem && !mediaItem.querySelector('.media-error')) {
-                const originalUrl = player.dataset.originalUrl;
-                const errorHTML = `
-                    <div class="media-error">
-                        <p>⚠️ No se puede reproducir directamente. 
-                        <a href="${originalUrl}" target="_blank" class="error-link">Abrir en Drive</a></p>
-                    </div>
-                `;
-                player.insertAdjacentHTML('afterend', errorHTML);
-            }
-        });
-        
-        player.addEventListener('canplay', () => {
-            console.log(`🎯 Reproductor ${index}: Listo para reproducir`);
-        });
-    });
+    // Ya no necesitamos configurar reproductores
+    // Solo usamos links directos a Drive
+    console.log('📎 Media links configurados');
 }
 
 // ========================================
