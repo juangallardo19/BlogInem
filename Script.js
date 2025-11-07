@@ -486,20 +486,28 @@ async function handleFormSubmit(e) {
         showMessage('Sending to Google Drive...', 'loading');
         if (debugAPI) updateDebug('api', 'Sending POST...');
         
-        // SOLUCIÓN CORS - usar mode: 'no-cors'
+        // Enviar con CORS habilitado
         const response = await fetch(SCRIPT_URL, {
             method: 'POST',
-            mode: 'no-cors',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(formData)
         });
-        
-        console.log('📨 Request sent successfully (no-cors mode)');
+
+        console.log('📨 Response status:', response.status);
+
+        // Leer la respuesta
+        const result = await response.json();
+        console.log('📊 Response data:', result);
+
         if (debugAPI) updateDebug('api', '✅ POST sent successfully');
-        
-        showMessage('Success! Your experience has been submitted and saved to Google Drive.', 'success');
+
+        if (result.success) {
+            showMessage('Success! Your experience has been submitted and saved to Google Drive.', 'success');
+        } else {
+            throw new Error(result.message || 'Failed to save experience');
+        }
 
         // Limpiar formulario
         if (form) form.reset();
@@ -1017,6 +1025,7 @@ async function handleAdminLogin() {
             // Activar modo admin
             isAdminMode = true;
             sessionStorage.setItem('isAdmin', 'true');
+            // Guardar la contraseña SOLO para operaciones de eliminación
             sessionStorage.setItem('adminPassword', password);
 
             // Cerrar modal
