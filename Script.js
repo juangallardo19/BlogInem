@@ -1,7 +1,7 @@
 // ========================================
 // CONFIGURACIÓN PRINCIPAL
 // ========================================
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwSCGZ3oumkJCqj-PSeKQ2cAQth4G-L_AeD3wi_qKWoOojS455s9UnFCV0VWQp4rppH/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwrTK4FGo3hTzlpWPgmSoRYMD7QuaQS9qKrYY67KzqbrkXAnjOyH7BaiyQkNdElmxTr/exec';
 
 console.log('🚀 Student Experience App - INICIANDO');
 console.log('📍 Script URL:', SCRIPT_URL);
