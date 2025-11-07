@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 Diagnóstico CORS - BlogInem API</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .url-display {
+            background: #f5f5f5;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            word-break: break-all;
+            font-family: monospace;
+            font-size: 12px;
+            color: #333;
+        }
+
+        .test-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            background: #fafafa;
+        }
+
+        .test-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .test-desc {
+            color: #666;
+            margin-bottom: 15px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: transform 0.2s;
+            display: inline-block;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result.success {
+            background: #d4edda;
+            border: 2px solid #28a745;
+            color: #155724;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+            color: #721c24;
+        }
+
+        .result.info {
+            background: #d1ecf1;
+            border: 2px solid #17a2b8;
+            color: #0c5460;
+        }
+
+        .result.warning {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            color: #856404;
+        }
+
+        .status-icon {
+            font-size: 24px;
+        }
+
+        .instructions {
+            background: #e3f2fd;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 30px;
+            border-left: 4px solid #2196F3;
+        }
+
+        .instructions h3 {
+            color: #1976D2;
+            margin-bottom: 15px;
+        }
+
+        .instructions ol {
+            margin-left: 20px;
+            color: #333;
+        }
+
+        .instructions li {
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+
+        .code-block {
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+            overflow-x: auto;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Diagnóstico CORS - BlogInem API</h1>
+        <p class="subtitle">Prueba tu Google Apps Script para verificar configuración CORS</p>
+
+        <div class="url-display">
+            <strong>URL de tu API:</strong><br>
+            <span id="apiUrl">https://script.google.com/macros/s/AKfycbybN3GZ2gcEvKZVg10dUBFu8mldIkI_WY3Lw5rsqSvjuY2ARB-NzjLkxQ1CvoA8VioL/exec</span>
+        </div>
+
+        <!-- TEST 1: Verificar versión -->
+        <div class="test-section">
+            <div class="test-title">
+                <span class="status-icon">🔄</span>
+                Test 1: Verificar Versión de la API
+            </div>
+            <div class="test-desc">
+                Este test verifica qué versión del script está corriendo. Debería mostrar <strong>"6.0-CORS-FIXED-FINAL"</strong>.
+            </div>
+            <button class="btn" onclick="testVersion()">Ejecutar Test 1</button>
+            <div id="result1" class="result"></div>
+        </div>
+
+        <!-- TEST 2: Verificar headers CORS -->
+        <div class="test-section">
+            <div class="test-title">
+                <span class="status-icon">🌐</span>
+                Test 2: Verificar Headers CORS
+            </div>
+            <div class="test-desc">
+                Este test intenta hacer un GET y verifica si los headers CORS están presentes.
+            </div>
+            <button class="btn" onclick="testCorsHeaders()">Ejecutar Test 2</button>
+            <div id="result2" class="result"></div>
+        </div>
+
+        <!-- TEST 3: Cargar experiencias -->
+        <div class="test-section">
+            <div class="test-title">
+                <span class="status-icon">📚</span>
+                Test 3: Cargar Experiencias
+            </div>
+            <div class="test-desc">
+                Este test intenta cargar todas las experiencias (igual que en tu sitio).
+            </div>
+            <button class="btn" onclick="testGetExperiencias()">Ejecutar Test 3</button>
+            <div id="result3" class="result"></div>
+        </div>
+
+        <!-- TEST 4: Verificar OPTIONS (preflight) -->
+        <div class="test-section">
+            <div class="test-title">
+                <span class="status-icon">✈️</span>
+                Test 4: Verificar OPTIONS Request (Preflight)
+            </div>
+            <div class="test-desc">
+                Este test verifica si el servidor responde correctamente a la petición OPTIONS (necesaria para CORS).
+            </div>
+            <button class="btn" onclick="testOptions()">Ejecutar Test 4</button>
+            <div id="result4" class="result"></div>
+        </div>
+
+        <!-- Instrucciones -->
+        <div class="instructions">
+            <h3>📋 ¿Qué hacer si los tests fallan?</h3>
+
+            <p><strong>Si Test 1 muestra una versión diferente a "6.0-CORS-FIXED-FINAL":</strong></p>
+            <ol>
+                <li>Ve a <a href="https://script.google.com" target="_blank">script.google.com</a></li>
+                <li>Abre tu proyecto (el que tiene la URL de arriba)</li>
+                <li><strong>BORRA TODO</strong> el código actual</li>
+                <li>Abre el archivo <code>script-FINAL.gs</code> de tu repositorio</li>
+                <li><strong>COPIA TODO</strong> el contenido y pégalo</li>
+                <li>Guarda (Ctrl+S)</li>
+                <li>Click en "Deploy" → "Manage deployments"</li>
+                <li>Edita el deployment → "New version" → "Deploy"</li>
+                <li>Espera 1-2 minutos y vuelve a ejecutar estos tests</li>
+            </ol>
+
+            <p style="margin-top: 20px;"><strong>Si Test 2 falla (no hay headers CORS):</strong></p>
+            <ol>
+                <li>Significa que el código NO se actualizó correctamente</li>
+                <li>Verifica que hayas pegado <strong>TODO</strong> el contenido de <code>script-FINAL.gs</code></li>
+                <li>Asegúrate de haber creado una <strong>nueva versión</strong> del deployment</li>
+            </ol>
+
+            <p style="margin-top: 20px;"><strong>Si Test 3 falla:</strong></p>
+            <ol>
+                <li>Primero asegúrate de que Test 1 y Test 2 pasen</li>
+                <li>Si pasan pero Test 3 falla, puede ser un problema con los datos</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbybN3GZ2gcEvKZVg10dUBFu8mldIkI_WY3Lw5rsqSvjuY2ARB-NzjLkxQ1CvoA8VioL/exec';
+
+        // TEST 1: Verificar versión
+        async function testVersion() {
+            const resultDiv = document.getElementById('result1');
+            const btn = event.target;
+
+            resultDiv.className = 'result info show';
+            resultDiv.textContent = '⏳ Probando...\n\nHaciendo petición GET a la API...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+
+                console.log('Test 1 - Response:', response);
+
+                const data = await response.json();
+
+                console.log('Test 1 - Data:', data);
+
+                let result = '✅ RESPUESTA RECIBIDA\n\n';
+                result += `Status: ${response.status} ${response.statusText}\n`;
+                result += `Success: ${data.success}\n`;
+                result += `Version: ${data.version}\n`;
+                result += `Message: ${data.message}\n\n`;
+
+                if (data.version === '6.0-CORS-FIXED-FINAL') {
+                    result += '🎉 PERFECTO! La versión es correcta.\n';
+                    result += 'Tu Google Apps Script está actualizado.\n\n';
+                    result += 'JSON completo:\n' + JSON.stringify(data, null, 2);
+                    resultDiv.className = 'result success show';
+                } else {
+                    result += '⚠️ VERSIÓN INCORRECTA!\n';
+                    result += `Encontrada: ${data.version}\n`;
+                    result += `Esperada: 6.0-CORS-FIXED-FINAL\n\n`;
+                    result += 'Necesitas actualizar tu Google Apps Script con script-FINAL.gs\n\n';
+                    result += 'JSON completo:\n' + JSON.stringify(data, null, 2);
+                    resultDiv.className = 'result warning show';
+                }
+
+                resultDiv.textContent = result;
+
+            } catch (error) {
+                console.error('Test 1 - Error:', error);
+
+                let result = '❌ ERROR\n\n';
+                result += `Error: ${error.message}\n\n`;
+                result += 'Esto significa que:\n';
+                result += '1. El script NO tiene headers CORS\n';
+                result += '2. O la URL es incorrecta\n';
+                result += '3. O el deployment no existe\n\n';
+                result += 'Stack trace:\n' + error.stack;
+
+                resultDiv.className = 'result error show';
+                resultDiv.textContent = result;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // TEST 2: Verificar headers CORS
+        async function testCorsHeaders() {
+            const resultDiv = document.getElementById('result2');
+            const btn = event.target;
+
+            resultDiv.className = 'result info show';
+            resultDiv.textContent = '⏳ Verificando headers CORS...\n\nEsto puede tardar unos segundos...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'GET',
+                    mode: 'cors'
+                });
+
+                console.log('Test 2 - Response:', response);
+                console.log('Test 2 - Headers:', [...response.headers.entries()]);
+
+                let result = '✅ PETICIÓN EXITOSA\n\n';
+                result += `Status: ${response.status} ${response.statusText}\n\n`;
+                result += 'Headers recibidos:\n';
+
+                const headers = {};
+                response.headers.forEach((value, key) => {
+                    headers[key] = value;
+                    result += `  ${key}: ${value}\n`;
+                });
+
+                const hasCorsHeader = response.headers.has('access-control-allow-origin');
+
+                result += '\n';
+
+                if (hasCorsHeader) {
+                    result += '🎉 PERFECTO! Headers CORS encontrados.\n';
+                    result += `Access-Control-Allow-Origin: ${response.headers.get('access-control-allow-origin')}\n`;
+                    resultDiv.className = 'result success show';
+                } else {
+                    result += '⚠️ FALTA header Access-Control-Allow-Origin!\n';
+                    result += 'El script NO está devolviendo headers CORS.\n';
+                    result += 'Necesitas actualizar con script-FINAL.gs\n';
+                    resultDiv.className = 'result warning show';
+                }
+
+                resultDiv.textContent = result;
+
+            } catch (error) {
+                console.error('Test 2 - Error:', error);
+
+                let result = '❌ ERROR CORS\n\n';
+                result += `Error: ${error.message}\n\n`;
+                result += 'El servidor NO está devolviendo headers CORS.\n';
+                result += 'Esto confirma que necesitas actualizar el código.\n\n';
+                result += 'SOLUCIÓN:\n';
+                result += '1. Ve a script.google.com\n';
+                result += '2. Reemplaza TODO el código con script-FINAL.gs\n';
+                result += '3. Despliega una nueva versión\n';
+
+                resultDiv.className = 'result error show';
+                resultDiv.textContent = result;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // TEST 3: Cargar experiencias
+        async function testGetExperiencias() {
+            const resultDiv = document.getElementById('result3');
+            const btn = event.target;
+
+            resultDiv.className = 'result info show';
+            resultDiv.textContent = '⏳ Cargando experiencias...\n\nEsto puede tardar unos segundos...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_URL}?action=getExperiencias`, {
+                    method: 'GET'
+                });
+
+                console.log('Test 3 - Response:', response);
+
+                const data = await response.json();
+
+                console.log('Test 3 - Data:', data);
+
+                let result = '✅ RESPUESTA RECIBIDA\n\n';
+                result += `Status: ${response.status}\n`;
+                result += `Success: ${data.success}\n`;
+                result += `Count: ${data.count}\n`;
+                result += `Message: ${data.message}\n\n`;
+
+                if (data.success && data.data) {
+                    result += `🎉 ${data.count} experiencias cargadas exitosamente!\n\n`;
+
+                    if (data.count > 0) {
+                        result += 'Primera experiencia:\n';
+                        result += JSON.stringify(data.data[0], null, 2);
+                    }
+
+                    resultDiv.className = 'result success show';
+                } else {
+                    result += '⚠️ No se encontraron experiencias.\n';
+                    result += 'Esto puede ser normal si no has subido ninguna.\n\n';
+                    result += 'Respuesta completa:\n' + JSON.stringify(data, null, 2);
+                    resultDiv.className = 'result warning show';
+                }
+
+                resultDiv.textContent = result;
+
+            } catch (error) {
+                console.error('Test 3 - Error:', error);
+
+                let result = '❌ ERROR AL CARGAR EXPERIENCIAS\n\n';
+                result += `Error: ${error.message}\n\n`;
+                result += 'Esto puede deberse a:\n';
+                result += '1. Falta de headers CORS (ejecuta Test 2)\n';
+                result += '2. Error en el servidor\n';
+                result += '3. Spreadsheet no existe\n\n';
+                result += 'Stack:\n' + error.stack;
+
+                resultDiv.className = 'result error show';
+                resultDiv.textContent = result;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // TEST 4: Verificar OPTIONS
+        async function testOptions() {
+            const resultDiv = document.getElementById('result4');
+            const btn = event.target;
+
+            resultDiv.className = 'result info show';
+            resultDiv.textContent = '⏳ Probando OPTIONS request...\n\nVerificando si doOptions() está implementado...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'OPTIONS',
+                    headers: {
+                        'Access-Control-Request-Method': 'POST',
+                        'Access-Control-Request-Headers': 'Content-Type'
+                    }
+                });
+
+                console.log('Test 4 - Response:', response);
+
+                let result = '✅ RESPUESTA RECIBIDA\n\n';
+                result += `Status: ${response.status}\n\n`;
+                result += 'Headers CORS:\n';
+
+                const corsOrigin = response.headers.get('access-control-allow-origin');
+                const corsMethods = response.headers.get('access-control-allow-methods');
+                const corsHeaders = response.headers.get('access-control-allow-headers');
+
+                result += `  Access-Control-Allow-Origin: ${corsOrigin || 'MISSING'}\n`;
+                result += `  Access-Control-Allow-Methods: ${corsMethods || 'MISSING'}\n`;
+                result += `  Access-Control-Allow-Headers: ${corsHeaders || 'MISSING'}\n\n`;
+
+                if (corsOrigin && corsMethods && corsHeaders) {
+                    result += '🎉 PERFECTO! doOptions() funciona correctamente.\n';
+                    result += 'Los requests POST funcionarán sin problemas.\n';
+                    resultDiv.className = 'result success show';
+                } else {
+                    result += '⚠️ FALTAN headers CORS en OPTIONS!\n';
+                    result += 'La función doOptions() no está configurada correctamente.\n';
+                    resultDiv.className = 'result warning show';
+                }
+
+                resultDiv.textContent = result;
+
+            } catch (error) {
+                console.error('Test 4 - Error:', error);
+
+                let result = '❌ OPTIONS REQUEST FALLÓ\n\n';
+                result += `Error: ${error.message}\n\n`;
+                result += 'El servidor NO está manejando OPTIONS requests.\n';
+                result += 'Esto significa que doOptions() no existe o está mal.\n\n';
+                result += 'SOLUCIÓN: Actualizar con script-FINAL.gs\n';
+
+                resultDiv.className = 'result error show';
+                resultDiv.textContent = result;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // Auto-ejecutar Test 1 al cargar
+        window.addEventListener('load', () => {
+            console.log('🔍 Página de diagnóstico cargada');
+            console.log('API URL:', API_URL);
+
+            // Auto-ejecutar Test 1 después de 1 segundo
+            setTimeout(() => {
+                const btn = document.querySelector('.test-section:first-of-type .btn');
+                btn.click();
+            }, 1000);
+        });
+    </script>
+</body>
+</html>
