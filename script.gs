@@ -65,6 +65,19 @@ function doGet(e) {
 }
 
 // ========================================
+// MANEJO DE PREFLIGHT CORS (OPTIONS)
+// ========================================
+
+function doOptions(e) {
+  Logger.log('=== OPTIONS REQUEST (CORS Preflight) ===');
+
+  // Retornar headers CORS para permitir el request
+  return ContentService
+    .createTextOutput('')
+    .setMimeType(ContentService.MimeType.TEXT);
+}
+
+// ========================================
 // MANEJO DE PETICIONES POST
 // ========================================
 
