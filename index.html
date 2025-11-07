@@ -138,6 +138,119 @@
             <!-- Mensaje de estado -->
             <div id="statusMessage" class="status-message"></div>
         </div>
+
+        <!-- Sección del Foro -->
+        <div class="forum-section" id="forumSection">
+            <div class="forum-header">
+                <div class="forum-title-container">
+                    <svg class="icon-forum" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                    </svg>
+                    <h2>Shared Experiences</h2>
+                </div>
+                <div class="forum-controls">
+                    <!-- Botón de Admin -->
+                    <button type="button" class="admin-btn" id="adminBtn" title="Admin Access">
+                        <svg class="icon-btn-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                        </svg>
+                        Admin
+                    </button>
+                </div>
+            </div>
+
+            <!-- Banner de modo Admin -->
+            <div id="adminBanner" class="admin-banner" style="display: none;">
+                <div class="admin-banner-content">
+                    <svg class="icon-admin-banner" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                    <span>Administrator Mode Active</span>
+                </div>
+                <button type="button" class="logout-btn" id="logoutBtn">
+                    <svg class="icon-btn-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                    </svg>
+                    Logout
+                </button>
+            </div>
+
+            <!-- Buscador -->
+            <div class="search-container">
+                <svg class="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                </svg>
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Search by student name..."
+                    class="search-input"
+                >
+            </div>
+
+            <!-- Container de publicaciones -->
+            <div id="experiencesContainer" class="experiences-container">
+                <!-- Loading spinner -->
+                <div class="loading-spinner" id="loadingSpinner">
+                    <svg class="spinner" viewBox="0 0 50 50">
+                        <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="5"></circle>
+                    </svg>
+                    <p>Loading experiences...</p>
+                </div>
+
+                <!-- Empty state -->
+                <div class="empty-state" id="emptyState" style="display: none;">
+                    <svg class="icon-empty" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+                    </svg>
+                    <h3>No Publications Yet</h3>
+                    <p>Be the first to share your English learning experience!</p>
+                </div>
+
+                <!-- Las publicaciones se cargarán aquí dinámicamente -->
+            </div>
+
+            <!-- Paginación -->
+            <div class="pagination" id="pagination" style="display: none;">
+                <button type="button" class="pagination-btn" id="prevBtn" disabled>
+                    <svg class="icon-btn-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                    </svg>
+                    Previous
+                </button>
+                <span class="pagination-info" id="paginationInfo">Page 1 of 1</span>
+                <button type="button" class="pagination-btn" id="nextBtn" disabled>
+                    Next
+                    <svg class="icon-btn-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Admin Login -->
+    <div id="adminModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <svg class="icon-modal" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                </svg>
+                <h3>Administrator Login</h3>
+            </div>
+            <p class="modal-description">Enter the administrator password to access management features</p>
+            <input
+                type="password"
+                id="adminPassword"
+                placeholder="Enter password"
+                class="modal-input"
+            >
+            <div id="modalError" class="modal-error" style="display: none;"></div>
+            <div class="modal-actions">
+                <button type="button" class="modal-btn modal-btn-cancel" id="modalCancelBtn">Cancel</button>
+                <button type="button" class="modal-btn modal-btn-confirm" id="modalConfirmBtn">Login</button>
+            </div>
+        </div>
     </div>
 
     <script src="Script.js"></script>
