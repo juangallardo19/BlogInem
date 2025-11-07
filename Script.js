@@ -1,7 +1,7 @@
 // ========================================
 // CONFIGURACIÓN PRINCIPAL
 // ========================================
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxGcfjoASChBvvAtTKf_DN6GMv0pFiyTNThbhsvIMDeu2oxyFEC5T_8hlQAHFPWDyCh/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwSCGZ3oumkJCqj-PSeKQ2cAQth4G-L_AeD3wi_qKWoOojS455s9UnFCV0VWQp4rppH/exec';
 
 console.log('🚀 Student Experience App - INICIANDO');
 console.log('📍 Script URL:', SCRIPT_URL);
@@ -590,6 +590,20 @@ let currentPage = 1;
 const ITEMS_PER_PAGE = 5;
 let isAdminMode = false;
 
+// Contraseña de admin (hash SHA-256 de "Ldirinem2025")
+// La contraseña real NO está en el código, solo su hash
+// Para cambiar la contraseña, abre generate-hash.html y genera un nuevo hash
+const ADMIN_PASSWORD_HASH = '7f6dbc05d620d3050960cd4cb3dedb8c08b1a9810964adeec21e2c0b3a22a3f3';
+
+// Función para calcular hash SHA-256
+async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+}
+
 // Elementos DOM del foro
 let experiencesContainer, loadingSpinner, emptyState;
 let searchInput, pagination, prevBtn, nextBtn, paginationInfo;
@@ -786,12 +800,13 @@ function createExperienceCard(exp) {
         </button>
     ` : '';
 
-    // Media (audio/video)
+    // Media (audio/video) - Convertir URLs de Google Drive a URLs directas
     let mediaHTML = '';
     if (exp.audioUrl || exp.videoUrl) {
         mediaHTML = '<div class="experience-media">';
 
         if (exp.audioUrl) {
+            const audioDirectUrl = getDirectDriveUrl(exp.audioUrl);
             mediaHTML += `
                 <div class="media-item">
                     <div class="media-label">
@@ -800,12 +815,18 @@ function createExperienceCard(exp) {
                         </svg>
                         Audio Recording
                     </div>
-                    <audio controls src="${exp.audioUrl}"></audio>
+                    <audio controls src="${audioDirectUrl}">
+                        Your browser does not support the audio element.
+                    </audio>
+                    <a href="${exp.audioUrl}" target="_blank" style="font-size: 12px; color: #012169; text-decoration: none; display: block; margin-top: 8px;">
+                        📎 Open in Google Drive
+                    </a>
                 </div>
             `;
         }
 
         if (exp.videoUrl) {
+            const videoDirectUrl = getDirectDriveUrl(exp.videoUrl);
             mediaHTML += `
                 <div class="media-item">
                     <div class="media-label">
@@ -814,7 +835,12 @@ function createExperienceCard(exp) {
                         </svg>
                         Video Recording
                     </div>
-                    <video controls src="${exp.videoUrl}"></video>
+                    <video controls src="${videoDirectUrl}">
+                        Your browser does not support the video element.
+                    </video>
+                    <a href="${exp.videoUrl}" target="_blank" style="font-size: 12px; color: #012169; text-decoration: none; display: block; margin-top: 8px;">
+                        📎 Open in Google Drive
+                    </a>
                 </div>
             `;
         }
@@ -965,7 +991,7 @@ function closeAdminModal() {
     }
 }
 
-// Login de admin
+// Login de admin (VALIDACIÓN LOCAL - SIN API)
 async function handleAdminLogin() {
     const password = adminPassword ? adminPassword.value : '';
 
@@ -974,28 +1000,18 @@ async function handleAdminLogin() {
         return;
     }
 
-    console.log('🔐 Validando credenciales...');
+    console.log('🔐 Validando credenciales localmente...');
 
     try {
         // Deshabilitar botón
         if (modalConfirmBtn) modalConfirmBtn.disabled = true;
 
-        const response = await fetch(SCRIPT_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                action: 'validateAdmin',
-                password: password
-            })
-        });
+        // Calcular hash de la contraseña ingresada
+        const inputHash = await sha256(password);
+        console.log('🔐 Hash calculado');
 
-        const data = await response.json();
-
-        console.log('📊 Respuesta validación:', data);
-
-        if (data.success && data.data && data.data.valid) {
+        // Comparar con el hash almacenado
+        if (inputHash === ADMIN_PASSWORD_HASH) {
             console.log('✅ Credenciales válidas');
 
             // Activar modo admin
@@ -1014,12 +1030,13 @@ async function handleAdminLogin() {
 
             showMessage('Administrator access granted', 'success');
         } else {
+            console.log('❌ Credenciales inválidas');
             showModalError('Invalid password. Please try again.');
         }
 
     } catch (error) {
         console.error('❌ Error en login:', error);
-        showModalError('Error validating credentials');
+        showModalError('Error validating credentials: ' + error.message);
     } finally {
         // Rehabilitar botón
         if (modalConfirmBtn) modalConfirmBtn.disabled = false;
@@ -1078,6 +1095,39 @@ function escapeHtml(text) {
         "'": '&#039;'
     };
     return text.replace(/[&<>"']/g, m => map[m]);
+}
+
+// Convertir URL de Google Drive a URL directa para reproducción
+function getDirectDriveUrl(driveUrl) {
+    if (!driveUrl) return null;
+
+    // Si ya es una URL directa, devolverla
+    if (driveUrl.includes('/uc?')) {
+        return driveUrl;
+    }
+
+    // Extraer el FILE_ID de diferentes formatos de URL de Google Drive
+    let fileId = null;
+
+    // Formato 1: https://drive.google.com/file/d/FILE_ID/view
+    const match1 = driveUrl.match(/\/file\/d\/([^\/]+)/);
+    if (match1) {
+        fileId = match1[1];
+    }
+
+    // Formato 2: https://drive.google.com/open?id=FILE_ID
+    const match2 = driveUrl.match(/[?&]id=([^&]+)/);
+    if (match2) {
+        fileId = match2[1];
+    }
+
+    // Si encontramos el ID, crear URL directa
+    if (fileId) {
+        return `https://drive.google.com/uc?export=download&id=${fileId}`;
+    }
+
+    // Si no pudimos extraer el ID, devolver la URL original
+    return driveUrl;
 }
 
 // Hacer deleteExperience global para que funcione con onclick

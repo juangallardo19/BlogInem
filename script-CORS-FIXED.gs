@@ -8,14 +8,14 @@ const FOLDER_ID = '1YJI7AJe7_RWHRWiY5yT-ZK8w69iMkDs9';
 // Nombre de la hoja de calculo
 const SPREADSHEET_NAME = 'Student Experiences Database';
 
-// Contraseña de administrador (solo para eliminar - validación backend)
+// Contraseña de administrador para acceso privilegiado
 const ADMIN_PASSWORD = 'Ldirinem2025';
 
 // ========================================
-// FUNCIÓN HELPER PARA RESPUESTAS
+// FUNCIÓN HELPER PARA CORS
 // ========================================
 
-function createResponse(jsonData) {
+function createCorsResponse(jsonData) {
   return ContentService
     .createTextOutput(JSON.stringify(jsonData))
     .setMimeType(ContentService.MimeType.JSON);
@@ -36,27 +36,35 @@ function doGet(e) {
       return getExperiencias(e);
     }
 
+    // Verificar si es validación de admin por GET
+    if (e.parameter && e.parameter.action === 'validateAdmin') {
+      Logger.log('🔐 Validación de admin por GET');
+      const password = e.parameter.password || '';
+      return validateAdminGet(password);
+    }
+
     // Respuesta por defecto para GET sin parámetros
-    return createResponse({
+    return createCorsResponse({
       success: true,
       message: 'Student Experience API is running',
       timestamp: new Date().toISOString(),
       info: 'Use POST method to submit experiences',
-      version: '5.0-FINAL',
+      version: '4.1-CORS-FIXED',
       endpoints: {
         POST: [
           'action=submitExperience (default)',
           'action=deleteExperiencia'
         ],
         GET: [
-          'action=getExperiencias'
+          'action=getExperiencias',
+          'action=validateAdmin&password=xxx'
         ]
       }
     });
 
   } catch (error) {
     Logger.log('❌ ERROR in doGet: ' + error.toString());
-    return createResponse({
+    return createCorsResponse({
       success: false,
       message: error.toString(),
       timestamp: new Date().toISOString()
@@ -65,16 +73,48 @@ function doGet(e) {
 }
 
 // ========================================
-// MANEJO DE PREFLIGHT CORS (OPTIONS)
+// VALIDAR ADMIN (GET)
 // ========================================
 
-function doOptions(e) {
-  Logger.log('=== OPTIONS REQUEST (CORS Preflight) ===');
+function validateAdminGet(password) {
+  try {
+    Logger.log('🔐 Validating admin credentials (GET)...');
+    Logger.log('Password provided: ' + (password ? 'Yes' : 'No'));
 
-  // Retornar headers CORS para permitir el request
-  return ContentService
-    .createTextOutput('')
-    .setMimeType(ContentService.MimeType.TEXT);
+    if (!password) {
+      return createCorsResponse({
+        success: false,
+        message: 'Password is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const isValid = password === ADMIN_PASSWORD;
+
+    if (isValid) {
+      Logger.log('✅ Admin credentials valid');
+    } else {
+      Logger.log('❌ Admin credentials invalid');
+    }
+
+    return createCorsResponse({
+      success: true,
+      action: 'validateAdmin',
+      data: {
+        valid: isValid,
+        message: isValid ? 'Authentication successful' : 'Invalid password'
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    Logger.log('❌ ERROR in validateAdminGet: ' + error.toString());
+    return createCorsResponse({
+      success: false,
+      message: error.toString(),
+      timestamp: new Date().toISOString()
+    });
+  }
 }
 
 // ========================================
@@ -86,7 +126,7 @@ function doPost(e) {
     Logger.log('=== NEW POST REQUEST ===');
     Logger.log('Request received at: ' + new Date());
 
-    // VALIDACIÓN: Verificar que 'e' existe
+    // VALIDACIÓN CRÍTICA: Verificar que 'e' existe
     if (!e) {
       Logger.log('ERROR: Parameter e is undefined');
       throw new Error('Request parameter is undefined');
@@ -98,6 +138,7 @@ function doPost(e) {
     // VALIDACIÓN: Verificar que postData existe
     if (!e.postData) {
       Logger.log('ERROR: postData is undefined');
+      Logger.log('Request might be GET instead of POST');
       throw new Error('No postData received - make sure request is POST method');
     }
 
@@ -140,7 +181,7 @@ function doPost(e) {
       default:
         Logger.log('📝 Guardando nueva experiencia...');
 
-        // Validar datos requeridos
+        // Validar datos requeridos para submitExperience
         Logger.log('Student name: ' + (data.studentName || 'NOT PROVIDED'));
         Logger.log('Experience length: ' + (data.experience ? data.experience.length : 'NOT PROVIDED'));
         Logger.log('Has audio: ' + (!!data.audioFile));
@@ -151,7 +192,7 @@ function doPost(e) {
           throw new Error('Missing required fields: studentName and experience are required');
         }
 
-        // Verificar acceso a la carpeta
+        // Verificar acceso a la carpeta ANTES de procesar
         try {
           const testFolder = DriveApp.getFolderById(FOLDER_ID);
           Logger.log('✅ Folder access successful: ' + testFolder.getName());
@@ -175,9 +216,9 @@ function doPost(e) {
       timestamp: new Date().toISOString()
     };
 
-    Logger.log('Sending success response');
+    Logger.log('Sending success response: ' + JSON.stringify(response));
 
-    return createResponse(response);
+    return createCorsResponse(response);
 
   } catch (error) {
     Logger.log('❌ CRITICAL ERROR in doPost: ' + error.toString());
@@ -188,12 +229,17 @@ function doPost(e) {
       success: false,
       message: error.toString(),
       error: error.name || 'UnknownError',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      debug: {
+        hasE: !!e,
+        hasPostData: !!(e && e.postData),
+        hasContents: !!(e && e.postData && e.postData.contents)
+      }
     };
 
-    Logger.log('Sending error response');
+    Logger.log('Sending error response: ' + JSON.stringify(errorResponse));
 
-    return createResponse(errorResponse);
+    return createCorsResponse(errorResponse);
   }
 }
 
@@ -212,11 +258,11 @@ function saveExperience(data) {
     const sheet = spreadsheet.getActiveSheet();
     Logger.log('📊 Got spreadsheet: ' + spreadsheet.getName());
 
-    // Generar ID único
+    // Generar ID único para esta experiencia
     const uniqueId = generateUniqueId();
     Logger.log('🔑 Generated unique ID: ' + uniqueId);
 
-    // Crear nombre de carpeta
+    // Crear nombre de carpeta con nombre del estudiante y fecha
     const timestamp = new Date(data.timestamp);
     const dateStr = Utilities.formatDate(timestamp, Session.getScriptTimeZone(), 'yyyy-MM-dd_HH-mm');
     const studentFolderName = `${data.studentName} - ${dateStr}`;
@@ -226,11 +272,12 @@ function saveExperience(data) {
     // Crear carpeta del estudiante
     const studentFolder = folder.createFolder(studentFolderName);
     Logger.log('✅ Student folder created: ' + studentFolder.getName());
+    Logger.log('📍 Student folder URL: ' + studentFolder.getUrl());
 
     let audioUrl = '';
     let videoUrl = '';
-    let audioFileId = '';
-    let videoFileId = '';
+    let audioFileName = '';
+    let videoFileName = '';
 
     // Guardar archivo de audio si existe
     if (data.audioFile && data.audioFile.data) {
@@ -242,18 +289,13 @@ function saveExperience(data) {
           data.audioFile.name
         );
         const audioFile = studentFolder.createFile(audioBlob);
-
-        // Hacer el archivo público para que pueda reproducirse
         audioFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-        audioFileId = audioFile.getId();
-        // Guardar URL en formato directo para reproducción
-        audioUrl = `https://drive.google.com/uc?export=download&id=${audioFileId}`;
-
-        Logger.log('✅ Audio file saved with ID: ' + audioFileId);
-        Logger.log('🔗 Direct Audio URL: ' + audioUrl);
+        audioUrl = audioFile.getUrl();
+        audioFileName = data.audioFile.name;
+        Logger.log('✅ Audio file saved: ' + audioFileName);
+        Logger.log('🔗 Audio URL: ' + audioUrl);
       } catch (audioError) {
-        Logger.log('⚠️ Error saving audio: ' + audioError.toString());
+        Logger.log('⚠️ Error saving audio (continuing): ' + audioError.toString());
       }
     }
 
@@ -267,22 +309,17 @@ function saveExperience(data) {
           data.videoFile.name
         );
         const videoFile = studentFolder.createFile(videoBlob);
-
-        // Hacer el archivo público para que pueda reproducirse
         videoFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-        videoFileId = videoFile.getId();
-        // Guardar URL en formato directo para reproducción
-        videoUrl = `https://drive.google.com/uc?export=download&id=${videoFileId}`;
-
-        Logger.log('✅ Video file saved with ID: ' + videoFileId);
-        Logger.log('🔗 Direct Video URL: ' + videoUrl);
+        videoUrl = videoFile.getUrl();
+        videoFileName = data.videoFile.name;
+        Logger.log('✅ Video file saved: ' + videoFileName);
+        Logger.log('🔗 Video URL: ' + videoUrl);
       } catch (videoError) {
-        Logger.log('⚠️ Error saving video: ' + videoError.toString());
+        Logger.log('⚠️ Error saving video (continuing): ' + videoError.toString());
       }
     }
 
-    // Crear documento descriptivo
+    // Crear documento descriptivo dentro de la carpeta del estudiante
     Logger.log('📄 Creating student document');
     const docFile = createStudentDocument(
       studentFolder,
@@ -291,12 +328,13 @@ function saveExperience(data) {
       timestamp,
       audioUrl,
       videoUrl,
-      data.audioFile ? data.audioFile.name : '',
-      data.videoFile ? data.videoFile.name : ''
+      audioFileName,
+      videoFileName
     );
     Logger.log('✅ Document created: ' + docFile.getName());
+    Logger.log('🔗 Document URL: ' + docFile.getUrl());
 
-    // Guardar en la hoja de calculo
+    // Guardar en la hoja de calculo con ID único
     Logger.log('📝 Adding row to spreadsheet');
     sheet.appendRow([
       uniqueId,
@@ -309,7 +347,7 @@ function saveExperience(data) {
       docFile.getUrl(),
       studentFolder.getId()
     ]);
-    Logger.log('✅ Row added to spreadsheet');
+    Logger.log('✅ Row added to spreadsheet successfully');
 
     const result = {
       id: uniqueId,
@@ -319,10 +357,20 @@ function saveExperience(data) {
       videoUrl: videoUrl,
       folderUrl: studentFolder.getUrl(),
       documentUrl: docFile.getUrl(),
+      audioFileName: audioFileName,
+      videoFileName: videoFileName,
       folderId: studentFolder.getId()
     };
 
     Logger.log('🎉 saveExperience completed successfully');
+    Logger.log('📋 Result summary: ' + JSON.stringify({
+      id: result.id,
+      studentName: result.studentName,
+      hasAudio: !!result.audioUrl,
+      hasVideo: !!result.videoUrl,
+      folderCreated: !!result.folderUrl,
+      documentCreated: !!result.documentUrl
+    }));
 
     return result;
 
@@ -347,11 +395,12 @@ function getExperiencias(e) {
 
     Logger.log('📊 Reading spreadsheet data...');
 
+    // Obtener todos los datos (excepto el encabezado)
     const lastRow = sheet.getLastRow();
 
     if (lastRow <= 1) {
       Logger.log('📭 No experiences found');
-      return createResponse({
+      return createCorsResponse({
         success: true,
         message: 'No experiences found',
         data: [],
@@ -366,7 +415,7 @@ function getExperiencias(e) {
 
     Logger.log('📊 Found ' + values.length + ' experiences');
 
-    // Transformar los datos
+    // Transformar los datos en objetos
     const experiences = values.map(row => {
       return {
         id: row[0],
@@ -384,9 +433,9 @@ function getExperiencias(e) {
     // Ordenar por fecha (más recientes primero)
     experiences.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
 
-    Logger.log('✅ Experiences retrieved and sorted');
+    Logger.log('✅ Experiences retrieved and sorted successfully');
 
-    return createResponse({
+    return createCorsResponse({
       success: true,
       message: 'Experiences retrieved successfully',
       data: experiences,
@@ -396,8 +445,9 @@ function getExperiencias(e) {
 
   } catch (error) {
     Logger.log('❌ ERROR in getExperiencias: ' + error.toString());
+    Logger.log('Error stack: ' + error.stack);
 
-    return createResponse({
+    return createCorsResponse({
       success: false,
       message: error.toString(),
       error: error.name || 'UnknownError',
@@ -418,9 +468,7 @@ function deleteExperiencia(data) {
       throw new Error('Experience ID is required');
     }
 
-    // VALIDACIÓN BACKEND: Verificar contraseña para eliminar
     if (!data.password || data.password !== ADMIN_PASSWORD) {
-      Logger.log('❌ Unauthorized deletion attempt');
       throw new Error('Unauthorized: Invalid admin credentials');
     }
 
@@ -448,19 +496,18 @@ function deleteExperiencia(data) {
     }
 
     Logger.log('📍 Found experience at row: ' + rowToDelete);
+    Logger.log('📁 Folder ID to delete: ' + folderId);
 
-    // Eliminar carpeta de Drive
     if (folderId) {
       try {
         const folderToDelete = DriveApp.getFolderById(folderId);
         folderToDelete.setTrashed(true);
         Logger.log('✅ Folder moved to trash: ' + folderId);
       } catch (folderError) {
-        Logger.log('⚠️ Could not delete folder: ' + folderError.toString());
+        Logger.log('⚠️ Could not delete folder (continuing): ' + folderError.toString());
       }
     }
 
-    // Eliminar fila del spreadsheet
     sheet.deleteRow(rowToDelete);
     Logger.log('✅ Row deleted from spreadsheet');
     Logger.log('🎉 Experience deleted successfully');
@@ -473,14 +520,14 @@ function deleteExperiencia(data) {
 
   } catch (error) {
     Logger.log('❌ ERROR in deleteExperiencia: ' + error.toString());
+    Logger.log('Error stack: ' + error.stack);
     throw error;
   }
 }
 
-// ========================================
-// CREAR DOCUMENTO DESCRIPTIVO
-// ========================================
+// [RESTO DEL CÓDIGO IGUAL - createStudentDocument, getOrCreateSpreadsheet, generateUniqueId, testDriveAccess]
 
+// Crear documento descriptivo del estudiante
 function createStudentDocument(folder, studentName, experience, timestamp, audioUrl, videoUrl, audioFileName, videoFileName) {
   try {
     Logger.log('📄 Creating Google Doc for: ' + studentName);
@@ -585,12 +632,12 @@ function createStudentDocument(folder, studentName, experience, timestamp, audio
     }
 
     doc.saveAndClose();
-    Logger.log('💾 Document saved');
+    Logger.log('💾 Document saved and closed');
 
     const docFile = DriveApp.getFileById(doc.getId());
     folder.addFile(docFile);
     DriveApp.getRootFolder().removeFile(docFile);
-    Logger.log('📁 Document moved to folder');
+    Logger.log('📁 Document moved to student folder');
 
     return docFile;
 
@@ -600,20 +647,16 @@ function createStudentDocument(folder, studentName, experience, timestamp, audio
   }
 }
 
-// ========================================
-// OBTENER O CREAR SPREADSHEET
-// ========================================
-
 function getOrCreateSpreadsheet(folder) {
   try {
     const files = folder.getFilesByName(SPREADSHEET_NAME);
 
     if (files.hasNext()) {
       const file = files.next();
-      Logger.log('📊 Using existing spreadsheet');
+      Logger.log('📊 Using existing spreadsheet: ' + file.getName());
       return SpreadsheetApp.openById(file.getId());
     } else {
-      Logger.log('📊 Creating new spreadsheet');
+      Logger.log('📊 Creating new spreadsheet: ' + SPREADSHEET_NAME);
 
       const spreadsheet = SpreadsheetApp.create(SPREADSHEET_NAME);
       const sheet = spreadsheet.getActiveSheet();
@@ -649,7 +692,7 @@ function getOrCreateSpreadsheet(folder) {
       folder.addFile(spreadsheetFile);
       DriveApp.getRootFolder().removeFile(spreadsheetFile);
 
-      Logger.log('✅ Spreadsheet created');
+      Logger.log('✅ New spreadsheet created and moved to folder');
       return spreadsheet;
     }
   } catch (error) {
@@ -658,62 +701,63 @@ function getOrCreateSpreadsheet(folder) {
   }
 }
 
-// ========================================
-// GENERAR ID ÚNICO
-// ========================================
-
 function generateUniqueId() {
   const timestamp = new Date().getTime();
   const random = Math.floor(Math.random() * 10000);
   return 'EXP-' + timestamp + '-' + random;
 }
 
-// ========================================
-// FUNCIÓN DE PRUEBA
-// ========================================
-
 function testDriveAccess() {
   try {
     Logger.log('=== TESTING DRIVE ACCESS ===');
+    Logger.log('📍 Folder ID: ' + FOLDER_ID);
 
     const folder = DriveApp.getFolderById(FOLDER_ID);
-    Logger.log('✅ Folder access: ' + folder.getName());
+    Logger.log('✅ Folder access successful: ' + folder.getName());
+    Logger.log('📍 Folder URL: ' + folder.getUrl());
 
     const testFolderName = 'TEST - ' + new Date().getTime();
     const testFolder = folder.createFolder(testFolderName);
-    Logger.log('✅ Test folder created');
+    Logger.log('✅ Test folder created: ' + testFolder.getName());
+    Logger.log('📍 Test folder URL: ' + testFolder.getUrl());
 
-    const testFile = testFolder.createFile('test.txt', 'Test file at ' + new Date());
-    Logger.log('✅ Test file created');
+    const testFile = testFolder.createFile('test.txt', 'This is a test file created at ' + new Date());
+    Logger.log('✅ Test file created: ' + testFile.getName());
 
     const spreadsheet = getOrCreateSpreadsheet(folder);
-    Logger.log('✅ Spreadsheet access OK');
+    Logger.log('✅ Spreadsheet access successful: ' + spreadsheet.getName());
 
     const testId = generateUniqueId();
+    Logger.log('🔑 Test ID generated: ' + testId);
+
     const sheet = spreadsheet.getActiveSheet();
     sheet.appendRow([
       testId,
       new Date(),
       'Test Student',
-      'Test experience',
+      'This is a test experience entry',
       '',
       '',
       testFolder.getUrl(),
-      'test doc',
+      'test document',
       testFolder.getId()
     ]);
-    Logger.log('✅ Test row added');
+    Logger.log('✅ Test row added to spreadsheet');
 
-    Logger.log('🎉 ALL TESTS PASSED');
+    Logger.log('🎉 ALL TESTS PASSED SUCCESSFULLY');
 
     return {
       success: true,
       folderName: folder.getName(),
+      folderUrl: folder.getUrl(),
+      testFolderUrl: testFolder.getUrl(),
+      spreadsheetName: spreadsheet.getName(),
       testId: testId
     };
 
   } catch (error) {
     Logger.log('❌ Test failed: ' + error.toString());
+    Logger.log('Error stack: ' + error.stack);
     throw error;
   }
 }
