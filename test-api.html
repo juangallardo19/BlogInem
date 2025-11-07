@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API Test - BlogInem</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #012169, #C8102E);
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            background: linear-gradient(135deg, #012169, #C8102E);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-size: 32px;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .test-section {
+            margin: 30px 0;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 14px;
+            border: 2px solid #e5e7eb;
+        }
+
+        .test-section h2 {
+            color: #012169;
+            font-size: 20px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #012169, #C8102E);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(1, 33, 105, 0.4);
+        }
+
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 15px;
+            margin: 10px 0;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #012169;
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-break: break-all;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .result.success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 2px solid #10b981;
+        }
+
+        .result.error {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 2px solid #ef4444;
+        }
+
+        .result.info {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 2px solid #3b82f6;
+        }
+
+        .url-display {
+            background: #1e293b;
+            color: #10b981;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin: 15px 0;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            margin: 5px 0;
+        }
+
+        .status.waiting {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status.loading {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        .status.ok {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .status.fail {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 BlogInem API Tester</h1>
+
+        <!-- URL Display -->
+        <div class="test-section">
+            <h2>📍 API URL</h2>
+            <div class="url-display" id="apiUrl">Loading...</div>
+        </div>
+
+        <!-- Test 1: GET Basic -->
+        <div class="test-section">
+            <h2>Test 1: GET Request (API Info)</h2>
+            <p>Tests if the API is responding</p>
+            <button onclick="testGetBasic()">Run Test 1</button>
+            <div id="test1Status"></div>
+            <div id="test1Result"></div>
+        </div>
+
+        <!-- Test 2: GET Experiences -->
+        <div class="test-section">
+            <h2>Test 2: GET Experiences</h2>
+            <p>Tests loading all experiences</p>
+            <button onclick="testGetExperiences()">Run Test 2</button>
+            <div id="test2Status"></div>
+            <div id="test2Result"></div>
+        </div>
+
+        <!-- Test 3: Validate Admin -->
+        <div class="test-section">
+            <h2>Test 3: Validate Admin Password</h2>
+            <p>Tests admin authentication</p>
+            <input type="password" id="testPassword" placeholder="Enter password (Ldirinem2025)" value="Ldirinem2025">
+            <button onclick="testValidateAdmin()">Run Test 3</button>
+            <div id="test3Status"></div>
+            <div id="test3Result"></div>
+        </div>
+
+        <!-- Test 4: Run All -->
+        <div class="test-section">
+            <h2>🚀 Run All Tests</h2>
+            <button onclick="runAllTests()" style="background: linear-gradient(135deg, #059669, #10b981);">Run All Tests</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'https://script.google.com/macros/s/AKfycbwXw539hnt9fu-VAvNhiSesNPVi7wkLKWElbxNlgo0K9qIkOu16XZyDIteq3mX60XVa/exec';
+
+        // Display API URL
+        document.getElementById('apiUrl').textContent = API_URL;
+
+        // Test 1: Basic GET
+        async function testGetBasic() {
+            const statusEl = document.getElementById('test1Status');
+            const resultEl = document.getElementById('test1Result');
+
+            statusEl.innerHTML = '<span class="status loading">⏳ Testing...</span>';
+            resultEl.innerHTML = '';
+
+            try {
+                console.log('Test 1: GET Basic');
+                const response = await fetch(API_URL, {
+                    method: 'GET'
+                });
+
+                const text = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error('Response is not valid JSON: ' + text.substring(0, 200));
+                }
+
+                console.log('Response:', data);
+
+                if (data.success) {
+                    statusEl.innerHTML = '<span class="status ok">✅ PASSED</span>';
+                    resultEl.className = 'result success';
+                    resultEl.textContent = JSON.stringify(data, null, 2);
+                } else {
+                    statusEl.innerHTML = '<span class="status fail">❌ FAILED</span>';
+                    resultEl.className = 'result error';
+                    resultEl.textContent = 'API returned success: false\n\n' + JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                console.error('Test 1 Error:', error);
+                statusEl.innerHTML = '<span class="status fail">❌ ERROR</span>';
+                resultEl.className = 'result error';
+                resultEl.textContent = 'Error: ' + error.message + '\n\nThis usually means:\n- The API URL is incorrect\n- The Google Apps Script is not deployed\n- CORS issues (check browser console)';
+            }
+        }
+
+        // Test 2: GET Experiences
+        async function testGetExperiences() {
+            const statusEl = document.getElementById('test2Status');
+            const resultEl = document.getElementById('test2Result');
+
+            statusEl.innerHTML = '<span class="status loading">⏳ Testing...</span>';
+            resultEl.innerHTML = '';
+
+            try {
+                console.log('Test 2: GET Experiences');
+                const response = await fetch(`${API_URL}?action=getExperiencias`, {
+                    method: 'GET'
+                });
+
+                const text = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error('Response is not valid JSON: ' + text.substring(0, 200));
+                }
+
+                console.log('Response:', data);
+
+                if (data.success) {
+                    statusEl.innerHTML = '<span class="status ok">✅ PASSED</span>';
+                    resultEl.className = 'result success';
+                    resultEl.textContent = `Found ${data.count} experience(s)\n\n` + JSON.stringify(data, null, 2);
+                } else {
+                    statusEl.innerHTML = '<span class="status fail">❌ FAILED</span>';
+                    resultEl.className = 'result error';
+                    resultEl.textContent = JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                console.error('Test 2 Error:', error);
+                statusEl.innerHTML = '<span class="status fail">❌ ERROR</span>';
+                resultEl.className = 'result error';
+                resultEl.textContent = 'Error: ' + error.message;
+            }
+        }
+
+        // Test 3: Validate Admin
+        async function testValidateAdmin() {
+            const statusEl = document.getElementById('test3Status');
+            const resultEl = document.getElementById('test3Result');
+            const password = document.getElementById('testPassword').value;
+
+            if (!password) {
+                alert('Please enter a password');
+                return;
+            }
+
+            statusEl.innerHTML = '<span class="status loading">⏳ Testing...</span>';
+            resultEl.innerHTML = '';
+
+            try {
+                console.log('Test 3: Validate Admin with password:', password);
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        action: 'validateAdmin',
+                        password: password
+                    })
+                });
+
+                const text = await response.text();
+                console.log('Raw response:', text);
+
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    throw new Error('Response is not valid JSON: ' + text.substring(0, 200));
+                }
+
+                console.log('Parsed response:', data);
+
+                if (data.success && data.data && data.data.valid) {
+                    statusEl.innerHTML = '<span class="status ok">✅ PASSED - Password is CORRECT!</span>';
+                    resultEl.className = 'result success';
+                    resultEl.textContent = '🎉 Admin password validated successfully!\n\n' + JSON.stringify(data, null, 2);
+                } else if (data.success && data.data && !data.data.valid) {
+                    statusEl.innerHTML = '<span class="status fail">❌ FAILED - Password is INCORRECT</span>';
+                    resultEl.className = 'result error';
+                    resultEl.textContent = '❌ Invalid password\n\nExpected: Ldirinem2025\nYou entered: ' + password + '\n\n' + JSON.stringify(data, null, 2);
+                } else {
+                    statusEl.innerHTML = '<span class="status fail">❌ FAILED</span>';
+                    resultEl.className = 'result error';
+                    resultEl.textContent = 'Unexpected response:\n\n' + JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                console.error('Test 3 Error:', error);
+                statusEl.innerHTML = '<span class="status fail">❌ ERROR</span>';
+                resultEl.className = 'result error';
+                resultEl.textContent = 'Error: ' + error.message + '\n\nPossible causes:\n- The script.gs code is not updated in Google Apps Script\n- The validateAdmin function is missing\n- CORS issues';
+            }
+        }
+
+        // Run all tests
+        async function runAllTests() {
+            await testGetBasic();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await testGetExperiences();
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            await testValidateAdmin();
+        }
+
+        // Auto-run test 1 on load
+        window.addEventListener('load', () => {
+            setTimeout(testGetBasic, 500);
+        });
+    </script>
+</body>
+</html>
