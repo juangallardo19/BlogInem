@@ -590,6 +590,20 @@ let currentPage = 1;
 const ITEMS_PER_PAGE = 5;
 let isAdminMode = false;
 
+// Contraseña de admin (hash SHA-256 de "Ldirinem2025")
+// La contraseña real NO está en el código, solo su hash
+// Para cambiar la contraseña, abre generate-hash.html y genera un nuevo hash
+const ADMIN_PASSWORD_HASH = '7f6dbc05d620d3050960cd4cb3dedb8c08b1a9810964adeec21e2c0b3a22a3f3';
+
+// Función para calcular hash SHA-256
+async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+}
+
 // Elementos DOM del foro
 let experiencesContainer, loadingSpinner, emptyState;
 let searchInput, pagination, prevBtn, nextBtn, paginationInfo;
@@ -965,7 +979,7 @@ function closeAdminModal() {
     }
 }
 
-// Login de admin
+// Login de admin (VALIDACIÓN LOCAL - SIN API)
 async function handleAdminLogin() {
     const password = adminPassword ? adminPassword.value : '';
 
@@ -974,22 +988,18 @@ async function handleAdminLogin() {
         return;
     }
 
-    console.log('🔐 Validando credenciales...');
+    console.log('🔐 Validando credenciales localmente...');
 
     try {
         // Deshabilitar botón
         if (modalConfirmBtn) modalConfirmBtn.disabled = true;
 
-        // USAR GET EN LUGAR DE POST PARA EVITAR CORS
-        const response = await fetch(`${SCRIPT_URL}?action=validateAdmin&password=${encodeURIComponent(password)}`, {
-            method: 'GET'
-        });
+        // Calcular hash de la contraseña ingresada
+        const inputHash = await sha256(password);
+        console.log('🔐 Hash calculado');
 
-        const data = await response.json();
-
-        console.log('📊 Respuesta validación:', data);
-
-        if (data.success && data.data && data.data.valid) {
+        // Comparar con el hash almacenado
+        if (inputHash === ADMIN_PASSWORD_HASH) {
             console.log('✅ Credenciales válidas');
 
             // Activar modo admin
@@ -1008,6 +1018,7 @@ async function handleAdminLogin() {
 
             showMessage('Administrator access granted', 'success');
         } else {
+            console.log('❌ Credenciales inválidas');
             showModalError('Invalid password. Please try again.');
         }
 
