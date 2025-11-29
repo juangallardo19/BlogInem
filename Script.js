@@ -2,7 +2,7 @@
 // FRONTEND ARREGLADO PARA MEDIOS
 // ========================================
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbwfbpqVd6l7-WVQuGoNQdk4Jy-p4a9KPCa_9-iKqQZTHLNb2fbBn2C6dQ3dxbjga-M/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxGmCl0p_3vH-z_yhfVjQRqpvOUvkZvCEtJpFn44Hx8ef_2lLNuJ35lEXnifXLNCdBq/exec';
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30MB
 
@@ -214,20 +214,20 @@ async function handleFormSubmit(event) {
         const videoFile = formData.get('videoFile');
         
         if (audioFile && audioFile.size > 0) {
-            showMessage('Procesando audio...', 'info');
+            showMessage('Processing audio...', 'info');
             console.log('🎵 Convirtiendo audio a base64...');
             data.audioFile = await fileToBase64(audioFile);
             console.log('✅ Audio convertido');
         }
         
         if (videoFile && videoFile.size > 0) {
-            showMessage('Procesando video...', 'info');
+            showMessage('Processing video...', 'info');
             console.log('🎥 Convirtiendo video a base64...');
             data.videoFile = await fileToBase64(videoFile);
             console.log('✅ Video convertido');
         }
         
-        showMessage('Enviando experiencia...', 'info');
+        showMessage('Submitting experience...', 'info');
         console.log('📨 Enviando datos al servidor...');
         
         const response = await fetch(API_URL, {
@@ -239,7 +239,7 @@ async function handleFormSubmit(event) {
         console.log('📥 Respuesta del servidor:', result);
         
         if (result.success) {
-            showMessage('¡Experiencia compartida exitosamente!', 'success');
+            showMessage('Experience shared successfully!', 'success');
             console.log('✅ Experiencia guardada con medios:', result.data.mediaInfo);
             
             event.target.reset();
@@ -308,7 +308,12 @@ async function loadPublications() {
         });
         
         if (result.success) {
-            allPublications = result.data || [];
+            // Filtrar publicaciones vacías (por si el backend no las filtró)
+            const validPublications = (result.data || []).filter(pub => 
+                pub.id && pub.id !== '' && pub.studentName && pub.studentName !== ''
+            );
+            
+            allPublications = validPublications;
             filteredPublications = [...allPublications];
             
             console.log(`📊 Publicaciones cargadas: ${allPublications.length}`);
@@ -329,7 +334,7 @@ async function loadPublications() {
         
     } catch (error) {
         console.error('❌ Error cargando publicaciones:', error);
-        showMessage('Error cargando: ' + error.message, 'error');
+        showMessage('Error loading: ' + error.message, 'error');
         showEmptyState();
     } finally {
         if (loadingSpinner) loadingSpinner.style.display = 'none';
@@ -471,14 +476,14 @@ function generatePublicationHTML(pub) {
                 </div>
             </div>
             
-            <!-- Sección de Comentarios DESPLEGABLE -->
+            <!-- Comments Section COLLAPSIBLE -->
             <div class="comments-section" data-pub-id="${pub.id}">
                 <button class="comments-toggle" onclick="toggleComments('${pub.id}')" type="button">
                     <div class="comments-toggle-header">
                         <svg class="icon-comments" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                         </svg>
-                        <h4>Comentarios</h4>
+                        <h4>Comments</h4>
                         <span class="comments-count" id="count-${pub.id}">0</span>
                     </div>
                     <svg class="icon-chevron" id="chevron-${pub.id}" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -487,18 +492,18 @@ function generatePublicationHTML(pub) {
                 </button>
                 
                 <div class="comments-content" id="content-${pub.id}" style="display: none;">
-                    <!-- Formulario de comentario -->
+                    <!-- Comment Form -->
                     <form class="comment-form" onsubmit="submitCommentForm(event, '${pub.id}')">
                         <input 
                             type="text" 
                             class="comment-name-input" 
-                            placeholder="Tu nombre" 
+                            placeholder="Your name" 
                             maxlength="50"
                             required
                         />
                         <textarea 
                             class="comment-text-input" 
-                            placeholder="Escribe tu comentario (máximo 500 caracteres)..." 
+                            placeholder="Write your comment (max 500 characters)..." 
                             rows="3"
                             maxlength="500"
                             required
@@ -506,17 +511,17 @@ function generatePublicationHTML(pub) {
                         <div class="comment-form-footer">
                             <span class="char-counter">0/500</span>
                             <button type="submit" class="comment-submit-btn">
-                                <svg class="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <svg class="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="transform: rotate(90deg);">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
                                 </svg>
-                                Comentar
+                                Comment
                             </button>
                         </div>
                     </form>
                     
-                    <!-- Lista de comentarios -->
+                    <!-- Comments List -->
                     <div class="comments-list" id="comments-${pub.id}">
-                        <div class="loading-comments">Cargando comentarios...</div>
+                        <div class="loading-comments">Loading comments...</div>
                     </div>
                 </div>
             </div>
@@ -738,7 +743,7 @@ async function handleAdminLogin() {
         if (result.success && result.data.valid) {
             enableAdminMode();
             hideAdminModal();
-            showMessage('Acceso de admin concedido', 'success');
+            showMessage('Admin access granted', 'success');
             localStorage.setItem('adminMode', 'true');
         } else {
             showModalError('Contraseña inválida');
@@ -783,7 +788,7 @@ function disableAdminMode() {
     
     localStorage.removeItem('adminMode');
     displayPublications();
-    showMessage('Modo admin desactivado', 'info');
+    showMessage('Admin mode deactivated', 'info');
 }
 
 async function deletePublication(publicationId) {
@@ -808,7 +813,7 @@ async function deletePublication(publicationId) {
         }
         
     } catch (error) {
-        showMessage('Error eliminando: ' + error.message, 'error');
+        showMessage('Error deleting: ' + error.message, 'error');
     }
 }
 
@@ -896,7 +901,7 @@ async function submitCommentForm(event, publicationId) {
 async function deleteCommentBtn(publicationId, commentId) {
     if (!isAdminMode) return;
     
-    if (!confirm('¿Eliminar este comentario?')) return;
+    if (!confirm('Delete this comment?')) return;
     
     try {
         const password = 'Ldirinem2025';
@@ -971,14 +976,14 @@ function renderCommentsList(comments, publicationId) {
                 <svg class="icon-no-comments" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                 </svg>
-                <p>No hay comentarios aún. ¡Sé el primero en comentar!</p>
+                <p>No comments yet. Be the first to comment!</p>
             </div>
         `;
     }
     
     return comments.map(c => {
         const deleteBtn = isAdminMode ? `
-            <button class="comment-delete-btn" onclick="deleteCommentBtn('${publicationId}', '${c.id}')" title="Eliminar comentario">
+            <button class="comment-delete-btn" onclick="deleteCommentBtn('${publicationId}', '${c.id}')" title="Delete comment">
                 <svg class="icon-delete-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                 </svg>
@@ -1008,10 +1013,10 @@ function renderCommentsList(comments, publicationId) {
 async function deletePublication(publicationId) {
     if (!isAdminMode) return;
     
-    if (!confirm('¿Eliminar esta publicación? No se puede deshacer.')) return;
+    if (!confirm('Delete this publication? This cannot be undone.')) return;
     
     try {
-        showMessage('Eliminando...', 'info');
+        showMessage('Deleting...', 'info');
         
         const password = 'Ldirinem2025';
         const url = `${API_URL}?action=deletePublication&id=${encodeURIComponent(publicationId)}&password=${encodeURIComponent(password)}`;
@@ -1020,14 +1025,14 @@ async function deletePublication(publicationId) {
         const result = await response.json();
         
         if (result.success) {
-            showMessage('Publicación eliminada', 'success');
+            showMessage('Publication deleted', 'success');
             await loadPublications();
         } else {
             throw new Error(result.message || 'Error al eliminar');
         }
         
     } catch (error) {
-        showMessage('Error eliminando: ' + error.message, 'error');
+        showMessage('Error deleting: ' + error.message, 'error');
     }
 }
 
@@ -1055,7 +1060,7 @@ async function cleanOrphanRecords() {
         }
         
     } catch (error) {
-        showMessage('Error limpiando: ' + error.message, 'error');
+        showMessage('Error clearing: ' + error.message, 'error');
     }
 }
 
