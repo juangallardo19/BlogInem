@@ -6,16 +6,16 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    /* Background con imagen de fondo y gradiente verde/amarillo */
+    /* Background con imagen de fondo y gradiente verde/amarillo más sutil */
     background: 
         linear-gradient(135deg, 
-            rgba(34, 139, 34, 0.8) 0%,     /* Verde oscuro semi-transparente */
-            rgba(46, 184, 46, 0.7) 25%,    /* Verde medio semi-transparente */
-            rgba(255, 215, 0, 0.7) 50%,    /* Amarillo dorado semi-transparente */
-            rgba(255, 193, 7, 0.7) 75%,    /* Amarillo ámbar semi-transparente */
-            rgba(34, 139, 34, 0.8) 100%    /* Verde oscuro semi-transparente */
+            rgba(34, 139, 34, 0.3) 0%,     /* Verde oscuro MÁS transparente */
+            rgba(46, 184, 46, 0.25) 25%,   /* Verde medio MÁS transparente */
+            rgba(255, 215, 0, 0.2) 50%,    /* Amarillo dorado MÁS transparente */
+            rgba(255, 193, 7, 0.25) 75%,   /* Amarillo ámbar MÁS transparente */
+            rgba(34, 139, 34, 0.3) 100%    /* Verde oscuro MÁS transparente */
         ),
-        url('image/Back.jpeg');
+        url('image/back.jpeg');
     background-attachment: fixed;
     background-size: cover;
     background-position: center;
