@@ -1343,11 +1343,32 @@ video {
     border-top: 2px solid rgba(34, 139, 34, 0.12);
 }
 
-.comments-header {
+/* Botón Toggle para Comentarios */
+.comments-toggle {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.08), rgba(255, 215, 0, 0.08));
+    border: 2px solid rgba(34, 139, 34, 0.15);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-bottom: 0;
+}
+
+.comments-toggle:hover {
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.12), rgba(255, 215, 0, 0.12));
+    border-color: rgba(34, 139, 34, 0.25);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(34, 139, 34, 0.15);
+}
+
+.comments-toggle-header {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 20px;
 }
 
 .icon-comments {
@@ -1355,13 +1376,62 @@ video {
     height: 24px;
     color: #228B22;
     stroke-width: 2;
+    flex-shrink: 0;
 }
 
-.comments-header h4 {
+.comments-toggle h4 {
     font-size: 18px;
     font-weight: 700;
     color: #228B22;
     margin: 0;
+}
+
+.comments-count {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    padding: 0 8px;
+    background: linear-gradient(135deg, #228B22, #2E8B57);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    border-radius: 14px;
+    margin-left: 8px;
+}
+
+.icon-chevron {
+    width: 20px;
+    height: 20px;
+    color: #228B22;
+    stroke-width: 2.5;
+    transition: transform 0.3s ease;
+    flex-shrink: 0;
+}
+
+/* Contenido desplegable */
+.comments-content {
+    margin-top: 20px;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.comments-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
 }
 
 /* Formulario de Comentarios */
@@ -1582,6 +1652,20 @@ video {
 
 /* Responsive - Comentarios */
 @media (max-width: 768px) {
+    .comments-toggle {
+        padding: 14px 16px;
+    }
+    
+    .comments-toggle h4 {
+        font-size: 16px;
+    }
+    
+    .comments-count {
+        min-width: 24px;
+        height: 24px;
+        font-size: 12px;
+    }
+    
     .comment-form {
         padding: 16px;
     }

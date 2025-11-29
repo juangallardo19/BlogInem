@@ -359,7 +359,7 @@ function displayPublications() {
     setupMediaPlayers();
     
     // Cargar comentarios para cada publicación
-    paginatedPublications.forEach(async (pub) => {
+    publicationsToShow.forEach(async (pub) => {
         const comments = await loadComments(pub.id);
         const commentsContainer = document.getElementById(`comments-${pub.id}`);
         if (commentsContainer) {
@@ -471,45 +471,53 @@ function generatePublicationHTML(pub) {
                 </div>
             </div>
             
-            <!-- Sección de Comentarios -->
+            <!-- Sección de Comentarios DESPLEGABLE -->
             <div class="comments-section" data-pub-id="${pub.id}">
-                <div class="comments-header">
-                    <svg class="icon-comments" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
-                    </svg>
-                    <h4>Comentarios</h4>
-                </div>
-                
-                <!-- Formulario de comentario -->
-                <form class="comment-form" onsubmit="submitCommentForm(event, '${pub.id}')">
-                    <input 
-                        type="text" 
-                        class="comment-name-input" 
-                        placeholder="Tu nombre" 
-                        maxlength="50"
-                        required
-                    />
-                    <textarea 
-                        class="comment-text-input" 
-                        placeholder="Escribe tu comentario (máximo 500 caracteres)..." 
-                        rows="3"
-                        maxlength="500"
-                        required
-                    ></textarea>
-                    <div class="comment-form-footer">
-                        <span class="char-counter">0/500</span>
-                        <button type="submit" class="comment-submit-btn">
-                            <svg class="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
-                            </svg>
-                            Comentar
-                        </button>
+                <button class="comments-toggle" onclick="toggleComments('${pub.id}')" type="button">
+                    <div class="comments-toggle-header">
+                        <svg class="icon-comments" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                        </svg>
+                        <h4>Comentarios</h4>
+                        <span class="comments-count" id="count-${pub.id}">0</span>
                     </div>
-                </form>
+                    <svg class="icon-chevron" id="chevron-${pub.id}" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                    </svg>
+                </button>
                 
-                <!-- Lista de comentarios -->
-                <div class="comments-list" id="comments-${pub.id}">
-                    <div class="loading-comments">Cargando comentarios...</div>
+                <div class="comments-content" id="content-${pub.id}" style="display: none;">
+                    <!-- Formulario de comentario -->
+                    <form class="comment-form" onsubmit="submitCommentForm(event, '${pub.id}')">
+                        <input 
+                            type="text" 
+                            class="comment-name-input" 
+                            placeholder="Tu nombre" 
+                            maxlength="50"
+                            required
+                        />
+                        <textarea 
+                            class="comment-text-input" 
+                            placeholder="Escribe tu comentario (máximo 500 caracteres)..." 
+                            rows="3"
+                            maxlength="500"
+                            required
+                        ></textarea>
+                        <div class="comment-form-footer">
+                            <span class="char-counter">0/500</span>
+                            <button type="submit" class="comment-submit-btn">
+                                <svg class="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                                </svg>
+                                Comentar
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- Lista de comentarios -->
+                    <div class="comments-list" id="comments-${pub.id}">
+                        <div class="loading-comments">Cargando comentarios...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -927,9 +935,36 @@ async function refreshComments(publicationId) {
     
     const comments = await loadComments(publicationId);
     commentsContainer.innerHTML = renderCommentsList(comments, publicationId);
+    
+    // Actualizar contador
+    updateCommentsCount(publicationId, comments.length);
+}
+
+function toggleComments(publicationId) {
+    const content = document.getElementById(`content-${publicationId}`);
+    const chevron = document.getElementById(`chevron-${publicationId}`);
+    
+    if (content.style.display === 'none') {
+        content.style.display = 'block';
+        chevron.style.transform = 'rotate(180deg)';
+    } else {
+        content.style.display = 'none';
+        chevron.style.transform = 'rotate(0deg)';
+    }
+}
+
+function updateCommentsCount(publicationId, count) {
+    const countElement = document.getElementById(`count-${publicationId}`);
+    if (countElement) {
+        countElement.textContent = count;
+        countElement.style.display = count > 0 ? 'flex' : 'none';
+    }
 }
 
 function renderCommentsList(comments, publicationId) {
+    // Actualizar el contador
+    updateCommentsCount(publicationId, comments.length);
+    
     if (comments.length === 0) {
         return `
             <div class="no-comments">
