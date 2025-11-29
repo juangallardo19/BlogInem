@@ -2,7 +2,7 @@
 // FRONTEND ARREGLADO PARA MEDIOS
 // ========================================
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbwJ6brd2mdheu5mcue5XRSDRg9VpNQ8_xAQrbgPkeFCPVGJUSm88hCKmfmvVp7ruomb/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwCWT3Zef5TXPZ2rMOG4nTuhUB4PxX95CcK-Tc_hbKGApLhJMLHEj_ybmFNzX2yxJeE/exec';
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30MB
 
