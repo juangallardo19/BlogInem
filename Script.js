@@ -2,7 +2,7 @@
 // FRONTEND ARREGLADO PARA MEDIOS
 // ========================================
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbxGmCl0p_3vH-z_yhfVjQRqpvOUvkZvCEtJpFn44Hx8ef_2lLNuJ35lEXnifXLNCdBq/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycby7DV_TUSx8zwrLE6pqS7Hfm7bl5COnj9UdGiutld77JDdAUIYDEev7A5H2GUdj6PO5/exec';
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30MB
 
@@ -849,52 +849,47 @@ async function submitCommentForm(event, publicationId) {
     const comment = commentInput.value.trim();
     
     if (!name || !comment) {
-        showMessage('Por favor completa todos los campos', 'error');
+        showMessage('Please fill in all fields', 'error');
         return;
     }
     
     if (comment.length > 500) {
-        showMessage('El comentario es muy largo (máximo 500 caracteres)', 'error');
+        showMessage('Comment is too long (máximo 500 caracteres)', 'error');
         return;
     }
     
     try {
         submitBtn.disabled = true;
-        submitBtn.textContent = 'Enviando...';
+        submitBtn.textContent = 'Sending...';
         
-        const data = {
+        // Usar GET en lugar de POST para evitar CORS
+        const params = new URLSearchParams({
             action: 'submitComment',
             publicationId: publicationId,
             name: name,
-            comment: comment
-        };
-        
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
+            comment: comment,
+            t: Date.now() // Cache buster
         });
         
+        const response = await fetch(`${API_URL}?${params.toString()}`);
         const result = await response.json();
         
         if (result.success) {
-            showMessage('Comentario publicado', 'success');
+            showMessage('Comment posted', 'success');
             nameInput.value = '';
             commentInput.value = '';
             
             // Recargar comentarios
             await refreshComments(publicationId);
         } else {
-            throw new Error(result.message || 'Error al publicar comentario');
+            throw new Error(result.message || 'Error posting comment');
         }
         
     } catch (error) {
         showMessage('Error: ' + error.message, 'error');
     } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = 'Comentar';
+        submitBtn.textContent = 'Comment';
     }
 }
 
@@ -905,28 +900,24 @@ async function deleteCommentBtn(publicationId, commentId) {
     
     try {
         const password = 'Ldirinem2025';
-        const data = {
+        
+        // Usar GET en lugar de POST para evitar CORS
+        const params = new URLSearchParams({
             action: 'deleteComment',
             publicationId: publicationId,
             commentId: commentId,
-            password: password
-        };
-        
-        const response = await fetch(API_URL, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
+            password: password,
+            t: Date.now() // Cache buster
         });
         
+        const response = await fetch(`${API_URL}?${params.toString()}`);
         const result = await response.json();
         
         if (result.success) {
-            showMessage('Comentario eliminado', 'success');
+            showMessage('Comment deleted', 'success');
             await refreshComments(publicationId);
         } else {
-            throw new Error(result.message || 'Error al eliminar');
+            throw new Error(result.message || 'Error deleting');
         }
         
     } catch (error) {
