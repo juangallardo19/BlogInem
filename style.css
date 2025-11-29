@@ -6,15 +6,20 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    /* Background inspirado en la bandera del Reino Unido */
-    background: linear-gradient(135deg, 
-        #012169 0%,     /* Azul marino de la bandera UK */
-        #1e40af 25%,    /* Azul transición */
-        #C8102E 50%,    /* Rojo de la bandera UK */
-        #dc2626 75%,    /* Rojo transición */
-        #012169 100%    /* Azul marino final */
-    );
+    /* Background con imagen de fondo y gradiente verde/amarillo */
+    background: 
+        linear-gradient(135deg, 
+            rgba(34, 139, 34, 0.8) 0%,     /* Verde oscuro semi-transparente */
+            rgba(46, 184, 46, 0.7) 25%,    /* Verde medio semi-transparente */
+            rgba(255, 215, 0, 0.7) 50%,    /* Amarillo dorado semi-transparente */
+            rgba(255, 193, 7, 0.7) 75%,    /* Amarillo ámbar semi-transparente */
+            rgba(34, 139, 34, 0.8) 100%    /* Verde oscuro semi-transparente */
+        ),
+        url('image/back.jpeg');
     background-attachment: fixed;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     min-height: 100vh;
     padding: 20px;
     position: relative;
@@ -52,7 +57,7 @@ body::before {
     box-shadow:
         0 20px 60px rgba(0, 0, 0, 0.3),
         0 0 0 1px rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(200, 16, 46, 0.1); /* Sutil borde rojo UK */
+    border: 2px solid rgba(34, 139, 34, 0.2); /* Sutil borde verde */
 }
 
 .header {
@@ -63,18 +68,18 @@ body::before {
     margin-bottom: 30px;
     padding-bottom: 20px;
     border-bottom: 3px solid;
-    border-image: linear-gradient(90deg, #012169, #C8102E, #012169) 1;
+    border-image: linear-gradient(90deg, #228B22, #FFD700, #228B22) 1;
 }
 
 .icon-header {
     width: 40px;
     height: 40px;
-    color: #012169; /* Azul UK */
+    color: #228B22; /* Verde */
     stroke-width: 1.5;
 }
 
 .header h1 {
-    background: linear-gradient(135deg, #012169, #C8102E);
+    background: linear-gradient(135deg, #228B22, #FFD700);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -103,9 +108,9 @@ textarea {
 input[type="text"]:focus,
 textarea:focus {
     outline: none;
-    border-color: #012169;
+    border-color: #228B22;
     background: rgba(255, 255, 255, 1);
-    box-shadow: 0 0 0 3px rgba(1, 33, 105, 0.1);
+    box-shadow: 0 0 0 3px rgba(34, 139, 34, 0.1);
 }
 
 textarea {
@@ -126,7 +131,7 @@ textarea {
 .icon-label {
     width: 20px;
     height: 20px;
-    color: #012169;
+    color: #228B22;
     stroke-width: 2;
 }
 
@@ -141,8 +146,8 @@ textarea {
     align-items: center;
     justify-content: center;
     padding: 30px 20px;
-    background: linear-gradient(135deg, rgba(1, 33, 105, 0.05), rgba(200, 16, 46, 0.05));
-    border: 3px dashed rgba(1, 33, 105, 0.3);
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.05), rgba(255, 215, 0, 0.05));
+    border: 3px dashed rgba(34, 139, 34, 0.3);
     border-radius: 16px;
     cursor: pointer;
     transition: all 0.3s ease;
@@ -150,27 +155,27 @@ textarea {
 }
 
 .file-upload-area:hover {
-    background: linear-gradient(135deg, rgba(1, 33, 105, 0.1), rgba(200, 16, 46, 0.1));
-    border-color: #012169;
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.1), rgba(255, 215, 0, 0.1));
+    border-color: #228B22;
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(1, 33, 105, 0.15);
+    box-shadow: 0 8px 25px rgba(34, 139, 34, 0.15);
 }
 
 .file-upload-area.has-file {
-    background: linear-gradient(135deg, rgba(1, 33, 105, 0.1), rgba(200, 16, 46, 0.1));
-    border-color: #C8102E;
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.1), rgba(255, 215, 0, 0.1));
+    border-color: #FFD700;
     border-style: solid;
 }
 
 .file-upload-area.has-file:hover {
-    background: linear-gradient(135deg, rgba(1, 33, 105, 0.15), rgba(200, 16, 46, 0.15));
-    border-color: #012169;
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.15), rgba(255, 215, 0, 0.15));
+    border-color: #228B22;
 }
 
 .upload-icon {
     width: 60px;
     height: 60px;
-    color: rgba(1, 33, 105, 0.6);
+    color: rgba(34, 139, 34, 0.6);
     stroke-width: 1.5;
     margin-bottom: 15px;
     transition: all 0.3s ease;
@@ -178,11 +183,11 @@ textarea {
 
 .file-upload-area:hover .upload-icon {
     transform: scale(1.1);
-    color: #012169;
+    color: #228B22;
 }
 
 .file-upload-area.has-file .upload-icon {
-    color: #C8102E;
+    color: #FFD700;
 }
 
 .upload-text {
@@ -194,7 +199,7 @@ textarea {
 }
 
 .file-upload-area.has-file .upload-text {
-    color: #012169;
+    color: #228B22;
 }
 
 .upload-hint {
@@ -204,15 +209,15 @@ textarea {
 }
 
 .file-upload-area.has-file .upload-hint {
-    color: #C8102E;
+    color: #FFD700;
 }
 
 /* Preview de Media */
 .media-preview {
     margin-top: 20px;
     padding: 20px;
-    background: linear-gradient(135deg, rgba(1, 33, 105, 0.05), rgba(255, 255, 255, 0.9));
-    border: 2px solid rgba(1, 33, 105, 0.2);
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.05), rgba(255, 255, 255, 0.9));
+    border: 2px solid rgba(34, 139, 34, 0.2);
     border-radius: 16px;
     animation: fadeIn 0.3s ease;
     display: none;
@@ -244,14 +249,14 @@ textarea {
 .icon-preview {
     width: 24px;
     height: 24px;
-    color: #012169;
+    color: #228B22;
     stroke-width: 2;
 }
 
 .preview-header strong {
     font-size: 16px;
     font-weight: bold;
-    color: #012169;
+    color: #228B22;
 }
 
 audio, video {
@@ -259,7 +264,7 @@ audio, video {
     border-radius: 8px;
     margin-bottom: 15px;
     background: #000;
-    border: 1px solid rgba(1, 33, 105, 0.2);
+    border: 1px solid rgba(34, 139, 34, 0.2);
 }
 
 video {
@@ -296,11 +301,11 @@ video {
     stroke-width: 2.5;
 }
 
-/* Botón de envío - Estilo UK */
+/* Botón de envío - Estilo Verde/Amarillo */
 .submit-btn {
     width: 100%;
     padding: 18px;
-    background: linear-gradient(135deg, #012169, #C8102E);
+    background: linear-gradient(135deg, #228B22, #FFD700);
     color: white;
     border: none;
     border-radius: 16px;
@@ -312,7 +317,7 @@ video {
     align-items: center;
     justify-content: center;
     gap: 10px;
-    box-shadow: 0 8px 25px rgba(1, 33, 105, 0.3);
+    box-shadow: 0 8px 25px rgba(34, 139, 34, 0.3);
     position: relative;
     overflow: hidden;
 }
@@ -334,7 +339,7 @@ video {
 
 .submit-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 12px 35px rgba(1, 33, 105, 0.4);
+    box-shadow: 0 12px 35px rgba(34, 139, 34, 0.4);
 }
 
 .submit-btn:disabled {
@@ -385,10 +390,10 @@ video {
 }
 
 .status-message.loading {
-    background: linear-gradient(135deg, rgba(1, 33, 105, 0.1), rgba(200, 16, 46, 0.1));
-    color: #012169;
-    border: 2px solid #012169;
-    box-shadow: 0 4px 12px rgba(1, 33, 105, 0.2);
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.1), rgba(255, 215, 0, 0.1));
+    color: #228B22;
+    border: 2px solid #228B22;
+    box-shadow: 0 4px 12px rgba(34, 139, 34, 0.2);
 }
 
 /* Efectos adicionales UK - Líneas removidas */
@@ -431,10 +436,10 @@ video {
 /* Animaciones suaves */
 @keyframes ukPulse {
     0%, 100% {
-        box-shadow: 0 0 0 0 rgba(1, 33, 105, 0.4);
+        box-shadow: 0 0 0 0 rgba(34, 139, 34, 0.4);
     }
     50% {
-        box-shadow: 0 0 0 10px rgba(1, 33, 105, 0);
+        box-shadow: 0 0 0 10px rgba(34, 139, 34, 0);
     }
 }
 
@@ -444,11 +449,11 @@ video {
 
 /* Estilo especial para archivos válidos */
 .file-upload-area.has-file .upload-text strong {
-    color: #012169;
+    color: #228B22;
 }
 
 .file-upload-area.has-file .upload-text small {
-    color: #C8102E;
+    color: #FFD700;
     font-weight: 600;
 }
 
@@ -466,7 +471,7 @@ video {
     box-shadow:
         0 20px 60px rgba(0, 0, 0, 0.3),
         0 0 0 1px rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(200, 16, 46, 0.1);
+    border: 2px solid rgba(34, 139, 34, 0.2);
 }
 
 /* Header del Foro */
@@ -477,7 +482,7 @@ video {
     margin-bottom: 30px;
     padding-bottom: 20px;
     border-bottom: 3px solid;
-    border-image: linear-gradient(90deg, #012169, #C8102E, #012169) 1;
+    border-image: linear-gradient(90deg, #228B22, #FFD700, #228B22) 1;
 }
 
 .forum-title-container {
@@ -489,12 +494,12 @@ video {
 .icon-forum {
     width: 36px;
     height: 36px;
-    color: #012169;
+    color: #228B22;
     stroke-width: 1.5;
 }
 
 .forum-header h2 {
-    background: linear-gradient(135deg, #012169, #C8102E);
+    background: linear-gradient(135deg, #228B22, #FFD700);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -509,7 +514,7 @@ video {
     align-items: center;
     gap: 8px;
     padding: 10px 20px;
-    background: linear-gradient(135deg, #012169, #1e40af);
+    background: linear-gradient(135deg, #228B22, #2E8B57);
     color: white;
     border: none;
     border-radius: 14px;
@@ -517,12 +522,12 @@ video {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(1, 33, 105, 0.3);
+    box-shadow: 0 4px 12px rgba(34, 139, 34, 0.3);
 }
 
 .admin-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(1, 33, 105, 0.4);
+    box-shadow: 0 6px 20px rgba(34, 139, 34, 0.4);
 }
 
 .icon-btn-small {
@@ -537,10 +542,10 @@ video {
     justify-content: space-between;
     align-items: center;
     padding: 15px 20px;
-    background: linear-gradient(135deg, #C8102E, #dc2626);
+    background: linear-gradient(135deg, #228B22, #2E8B57);
     border-radius: 14px;
     margin-bottom: 20px;
-    box-shadow: 0 4px 12px rgba(200, 16, 46, 0.3);
+    box-shadow: 0 4px 12px rgba(34, 139, 34, 0.3);
     animation: slideDown 0.3s ease;
 }
 
@@ -609,9 +614,9 @@ video {
 
 .search-input:focus {
     outline: none;
-    border-color: #012169;
+    border-color: #228B22;
     background: rgba(255, 255, 255, 1);
-    box-shadow: 0 0 0 3px rgba(1, 33, 105, 0.1);
+    box-shadow: 0 0 0 3px rgba(34, 139, 34, 0.1);
 }
 
 /* Container de Experiencias */
@@ -627,7 +632,7 @@ video {
     align-items: center;
     justify-content: center;
     padding: 60px 20px;
-    color: #012169;
+    color: #228B22;
 }
 
 .spinner {
@@ -637,7 +642,7 @@ video {
 }
 
 .spinner .path {
-    stroke: #012169;
+    stroke: #228B22;
     stroke-linecap: round;
     animation: dash 1.5s ease-in-out infinite;
 }
@@ -683,7 +688,7 @@ video {
 .icon-empty {
     width: 80px;
     height: 80px;
-    color: rgba(1, 33, 105, 0.3);
+    color: rgba(34, 139, 34, 0.3);
     stroke-width: 1.5;
     margin-bottom: 20px;
 }
@@ -702,7 +707,7 @@ video {
 /* Card de Publicación - Mejorada */
 .publication-card {
     background: white;
-    border: 2px solid rgba(1, 33, 105, 0.12);
+    border: 2px solid rgba(34, 139, 34, 0.12);
     border-radius: 20px;
     padding: 30px;
     margin-bottom: 24px;
@@ -712,8 +717,8 @@ video {
 }
 
 .publication-card:hover {
-    border-color: #012169;
-    box-shadow: 0 8px 30px rgba(1, 33, 105, 0.18);
+    border-color: #228B22;
+    box-shadow: 0 8px 30px rgba(34, 139, 34, 0.18);
     transform: translateY(-3px);
 }
 
@@ -724,7 +729,7 @@ video {
     align-items: flex-start;
     margin-bottom: 20px;
     padding-bottom: 20px;
-    border-bottom: 2px solid rgba(1, 33, 105, 0.08);
+    border-bottom: 2px solid rgba(34, 139, 34, 0.08);
 }
 
 .student-info {
@@ -737,12 +742,12 @@ video {
 .student-avatar {
     width: 56px;
     height: 56px;
-    background: linear-gradient(135deg, #012169, #1e40af);
+    background: linear-gradient(135deg, #228B22, #2E8B57);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 12px rgba(1, 33, 105, 0.25);
+    box-shadow: 0 4px 12px rgba(34, 139, 34, 0.25);
 }
 
 .icon-avatar {
@@ -759,7 +764,7 @@ video {
 .student-name {
     font-size: 22px;
     font-weight: 700;
-    color: #012169;
+    color: #228B22;
     margin: 0 0 6px 0;
 }
 
@@ -846,8 +851,8 @@ video {
     gap: 12px;
     align-items: flex-start;
     padding: 20px;
-    background: linear-gradient(135deg, rgba(1, 33, 105, 0.03), rgba(200, 16, 46, 0.02));
-    border-left: 4px solid #012169;
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.03), rgba(255, 215, 0, 0.02));
+    border-left: 4px solid #228B22;
     border-radius: 12px;
     margin-bottom: 20px;
 }
@@ -855,7 +860,7 @@ video {
 .icon-content {
     width: 24px;
     height: 24px;
-    color: #012169;
+    color: #228B22;
     stroke-width: 2;
     flex-shrink: 0;
     margin-top: 2px;
@@ -882,8 +887,8 @@ video {
     align-items: center;
     gap: 16px;
     padding: 18px 20px;
-    background: linear-gradient(135deg, rgba(1, 33, 105, 0.05), rgba(255, 255, 255, 0.95));
-    border: 2px solid rgba(1, 33, 105, 0.15);
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.05), rgba(255, 255, 255, 0.95));
+    border: 2px solid rgba(34, 139, 34, 0.15);
     border-radius: 16px;
     text-decoration: none;
     transition: all 0.3s ease;
@@ -891,9 +896,9 @@ video {
 }
 
 .media-link:hover {
-    background: linear-gradient(135deg, rgba(1, 33, 105, 0.1), rgba(255, 255, 255, 1));
-    border-color: #012169;
-    box-shadow: 0 6px 20px rgba(1, 33, 105, 0.15);
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.1), rgba(255, 255, 255, 1));
+    border-color: #228B22;
+    box-shadow: 0 6px 20px rgba(34, 139, 34, 0.15);
     transform: translateX(4px);
 }
 
@@ -941,7 +946,7 @@ video {
 .media-link-title {
     font-size: 16px;
     font-weight: 700;
-    color: #012169;
+    color: #228B22;
 }
 
 .media-link-filename {
@@ -957,7 +962,7 @@ video {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #012169;
+    color: #228B22;
     opacity: 0.6;
     transition: all 0.3s ease;
 }
@@ -979,7 +984,7 @@ video {
     justify-content: space-between;
     align-items: center;
     padding-top: 16px;
-    border-top: 2px solid rgba(1, 33, 105, 0.08);
+    border-top: 2px solid rgba(34, 139, 34, 0.08);
     margin-top: 20px;
 }
 
@@ -1032,7 +1037,7 @@ video {
     gap: 20px;
     margin-top: 30px;
     padding-top: 20px;
-    border-top: 2px solid rgba(1, 33, 105, 0.1);
+    border-top: 2px solid rgba(34, 139, 34, 0.1);
 }
 
 .pagination-btn {
@@ -1040,7 +1045,7 @@ video {
     align-items: center;
     gap: 8px;
     padding: 10px 20px;
-    background: linear-gradient(135deg, #012169, #1e40af);
+    background: linear-gradient(135deg, #228B22, #2E8B57);
     color: white;
     border: none;
     border-radius: 14px;
@@ -1048,12 +1053,12 @@ video {
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 4px 12px rgba(1, 33, 105, 0.3);
+    box-shadow: 0 4px 12px rgba(34, 139, 34, 0.3);
 }
 
 .pagination-btn:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(1, 33, 105, 0.4);
+    box-shadow: 0 6px 20px rgba(34, 139, 34, 0.4);
 }
 
 .pagination-btn:disabled {
@@ -1116,12 +1121,12 @@ video {
 .icon-modal {
     width: 32px;
     height: 32px;
-    color: #012169;
+    color: #228B22;
     stroke-width: 2;
 }
 
 .modal-header h3 {
-    background: linear-gradient(135deg, #012169, #C8102E);
+    background: linear-gradient(135deg, #228B22, #FFD700);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -1150,9 +1155,9 @@ video {
 
 .modal-input:focus {
     outline: none;
-    border-color: #012169;
+    border-color: #228B22;
     background: rgba(255, 255, 255, 1);
-    box-shadow: 0 0 0 3px rgba(1, 33, 105, 0.1);
+    box-shadow: 0 0 0 3px rgba(34, 139, 34, 0.1);
 }
 
 .modal-error {
@@ -1193,14 +1198,14 @@ video {
 }
 
 .modal-btn-confirm {
-    background: linear-gradient(135deg, #012169, #C8102E);
+    background: linear-gradient(135deg, #228B22, #FFD700);
     color: white;
-    box-shadow: 0 4px 12px rgba(1, 33, 105, 0.3);
+    box-shadow: 0 4px 12px rgba(34, 139, 34, 0.3);
 }
 
 .modal-btn-confirm:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(1, 33, 105, 0.4);
+    box-shadow: 0 6px 20px rgba(34, 139, 34, 0.4);
 }
 
 /* Responsive - Foro y Publicaciones */
