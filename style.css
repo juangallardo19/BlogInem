@@ -9,11 +9,11 @@ body {
     /* Background con imagen de fondo y gradiente verde/amarillo al 50% */
     background: 
         linear-gradient(135deg, 
-            rgba(34, 139, 34, 0.5) 0%,     /* Verde oscuro al 50% */
-            rgba(46, 184, 46, 0.5) 25%,    /* Verde medio al 50% */
-            rgba(255, 215, 0, 0.5) 50%,    /* Amarillo dorado al 50% */
-            rgba(255, 193, 7, 0.5) 75%,    /* Amarillo ámbar al 50% */
-            rgba(34, 139, 34, 0.5) 100%    /* Verde oscuro al 50% */
+            rgba(34, 139, 34, 0.4) 0%,     /* Verde oscuro al 50% */
+            rgba(46, 184, 46, 0.4) 25%,    /* Verde medio al 50% */
+            rgba(255, 215, 0, 0.4) 50%,    /* Amarillo dorado al 50% */
+            rgba(255, 193, 7, 0.4) 75%,    /* Amarillo ámbar al 50% */
+            rgba(34, 139, 34, 0.4) 100%    /* Verde oscuro al 50% */
         ),
         url('image/Back.jpeg');
     background-attachment: fixed;
