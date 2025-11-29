@@ -2,7 +2,7 @@
 // FRONTEND ARREGLADO PARA MEDIOS
 // ========================================
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbzM5NhK-EssFu8AHei_88s_V6JyUeLuyON_LEgdRJPqWSjQC-0O10W-e0MbQoTaSidY/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwfbpqVd6l7-WVQuGoNQdk4Jy-p4a9KPCa_9-iKqQZTHLNb2fbBn2C6dQ3dxbjga-M/exec';
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30MB
 
@@ -25,33 +25,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (savedAdmin === 'true') {
         enableAdminMode();
     }
-    
-    // Debug del JSON
-    setTimeout(debugJsonDatabase, 2000);
 });
-
-// ========================================
-// DEBUG JSON DATABASE
-// ========================================
-
-async function debugJsonDatabase() {
-    try {
-        const url = `${API_URL}?action=debugJson&t=${Date.now()}`;
-        const response = await fetch(url);
-        const result = await response.json();
-        
-        if (result.success) {
-            console.log('📊 JSON Database Debug:', result.debug);
-            console.log(`📋 Total publicaciones: ${result.debug.totalPublications}`);
-            console.log(`🎵 Con audio: ${result.debug.withAudio}`);
-            console.log(`🎥 Con video: ${result.debug.withVideo}`);
-            console.log(`🎭 Con ambos: ${result.debug.withBoth}`);
-        }
-        
-    } catch (error) {
-        console.warn('Debug falló:', error);
-    }
-}
 
 // ========================================
 // EVENT LISTENERS
