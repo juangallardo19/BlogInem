@@ -297,13 +297,13 @@ async function loadPublications() {
         if (loadingSpinner) loadingSpinner.style.display = 'flex';
         if (emptyState) emptyState.style.display = 'none';
         
-        const url = `${API_URL}?action=getPublications&t=${Date.now()}`;
+        const url = `${API_URL}?action=getExperiencias&t=${Date.now()}`;
         const response = await fetch(url);
         const result = await response.json();
         
         console.log('📥 Respuesta de publicaciones:', {
             success: result.success,
-            total: result.total,
+            count: result.count,
             hasData: !!result.data
         });
         
