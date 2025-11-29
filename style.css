@@ -15,7 +15,7 @@ body {
             rgba(255, 193, 7, 0.7) 75%,    /* Amarillo ámbar semi-transparente */
             rgba(34, 139, 34, 0.8) 100%    /* Verde oscuro semi-transparente */
         ),
-        url('image/back.jpeg');
+        url('image/Back.jpeg');
     background-attachment: fixed;
     background-size: cover;
     background-position: center;
