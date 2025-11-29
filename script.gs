@@ -1,719 +1,1113 @@
 // ========================================
-// CONFIGURACIÓN PRINCIPAL
+// FRONTEND ARREGLADO PARA MEDIOS
 // ========================================
 
-// ID de tu carpeta de Google Drive
-const FOLDER_ID = '1YJI7AJe7_RWHRWiY5yT-ZK8w69iMkDs9';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzhIM_UXuItRF0EigqMt6FDoXSuMTT7GPvF3tIbBPDbOuU9yFcgP4NVdEn8ohl85f2L/exec';
+const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30MB
 
-// Nombre de la hoja de calculo
-const SPREADSHEET_NAME = 'Student Experiences Database';
-
-// Contraseña de administrador (solo para eliminar - validación backend)
-const ADMIN_PASSWORD = 'Ldirinem2025';
-
-// ========================================
-// FUNCIÓN HELPER PARA RESPUESTAS
-// ========================================
-
-function createResponse(jsonData) {
-  return ContentService
-    .createTextOutput(JSON.stringify(jsonData))
-    .setMimeType(ContentService.MimeType.JSON);
-}
+let isAdminMode = false;
+let allPublications = [];
+let filteredPublications = [];
+let currentPage = 1;
+const publicationsPerPage = 5;
 
 // ========================================
-// MANEJO DE PETICIONES GET
+// INICIALIZACIÓN
 // ========================================
 
-function doGet(e) {
-  Logger.log('=== GET REQUEST RECEIVED ===');
-  Logger.log('GET parameters: ' + JSON.stringify(e));
-
-  try {
-    // Verificar si se solicita obtener experiencias
-    if (e.parameter && e.parameter.action === 'getExperiencias') {
-      Logger.log('🔍 Solicitud de getExperiencias recibida');
-      return getExperiencias(e);
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Iniciando Student Experience Portal v2.0 - Media Fixed');
+    setupEventListeners();
+    loadPublications();
+    
+    const savedAdmin = localStorage.getItem('adminMode');
+    if (savedAdmin === 'true') {
+        enableAdminMode();
     }
-
-    // Respuesta por defecto para GET sin parámetros
-    return createResponse({
-      success: true,
-      message: 'Student Experience API is running',
-      timestamp: new Date().toISOString(),
-      info: 'Use POST method to submit experiences',
-      version: '5.0-FINAL',
-      endpoints: {
-        POST: [
-          'action=submitExperience (default)',
-          'action=deleteExperiencia'
-        ],
-        GET: [
-          'action=getExperiencias'
-        ]
-      }
-    });
-
-  } catch (error) {
-    Logger.log('❌ ERROR in doGet: ' + error.toString());
-    return createResponse({
-      success: false,
-      message: error.toString(),
-      timestamp: new Date().toISOString()
-    });
-  }
-}
+    
+    // Debug del JSON
+    setTimeout(debugJsonDatabase, 2000);
+});
 
 // ========================================
-// MANEJO DE PREFLIGHT CORS (OPTIONS)
+// DEBUG JSON DATABASE
 // ========================================
 
-function doOptions(e) {
-  Logger.log('=== OPTIONS REQUEST (CORS Preflight) ===');
-
-  // Retornar headers CORS para permitir el request
-  return ContentService
-    .createTextOutput('')
-    .setMimeType(ContentService.MimeType.TEXT);
-}
-
-// ========================================
-// MANEJO DE PETICIONES POST
-// ========================================
-
-function doPost(e) {
-  try {
-    Logger.log('=== NEW POST REQUEST ===');
-    Logger.log('Request received at: ' + new Date());
-
-    // VALIDACIÓN: Verificar que 'e' existe
-    if (!e) {
-      Logger.log('ERROR: Parameter e is undefined');
-      throw new Error('Request parameter is undefined');
-    }
-
-    Logger.log('Request object keys: ' + Object.keys(e));
-    Logger.log('Has postData: ' + (!!e.postData));
-
-    // VALIDACIÓN: Verificar que postData existe
-    if (!e.postData) {
-      Logger.log('ERROR: postData is undefined');
-      throw new Error('No postData received - make sure request is POST method');
-    }
-
-    Logger.log('PostData keys: ' + Object.keys(e.postData));
-    Logger.log('Has contents: ' + (!!e.postData.contents));
-
-    // VALIDACIÓN: Verificar que contents existe
-    if (!e.postData.contents) {
-      Logger.log('ERROR: postData.contents is undefined');
-      throw new Error('No data contents received in POST request');
-    }
-
-    Logger.log('Raw data length: ' + e.postData.contents.length);
-    Logger.log('Raw data preview: ' + e.postData.contents.substring(0, 200) + '...');
-
-    let data;
+async function debugJsonDatabase() {
     try {
-      data = JSON.parse(e.postData.contents);
-      Logger.log('JSON parsing successful');
-    } catch (parseError) {
-      Logger.log('JSON parsing failed: ' + parseError.toString());
-      throw new Error('Invalid JSON data: ' + parseError.message);
-    }
-
-    Logger.log('Parsed data keys: ' + Object.keys(data));
-
-    // ROUTER: Determinar qué acción ejecutar
-    const action = data.action || 'submitExperience';
-    Logger.log('📍 Action requested: ' + action);
-
-    let result;
-
-    switch(action) {
-      case 'deleteExperiencia':
-        Logger.log('🗑️ Solicitando eliminación de experiencia...');
-        result = deleteExperiencia(data);
-        break;
-
-      case 'submitExperience':
-      default:
-        Logger.log('📝 Guardando nueva experiencia...');
-
-        // Validar datos requeridos
-        Logger.log('Student name: ' + (data.studentName || 'NOT PROVIDED'));
-        Logger.log('Experience length: ' + (data.experience ? data.experience.length : 'NOT PROVIDED'));
-        Logger.log('Has audio: ' + (!!data.audioFile));
-        Logger.log('Has video: ' + (!!data.videoFile));
-        Logger.log('Timestamp: ' + (data.timestamp || 'NOT PROVIDED'));
-
-        if (!data.studentName || !data.experience) {
-          throw new Error('Missing required fields: studentName and experience are required');
+        const url = `${API_URL}?action=debugJson&t=${Date.now()}`;
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        if (result.success) {
+            console.log('📊 JSON Database Debug:', result.debug);
+            console.log(`📋 Total publicaciones: ${result.debug.totalPublications}`);
+            console.log(`🎵 Con audio: ${result.debug.withAudio}`);
+            console.log(`🎥 Con video: ${result.debug.withVideo}`);
+            console.log(`🎭 Con ambos: ${result.debug.withBoth}`);
         }
+        
+    } catch (error) {
+        console.warn('Debug falló:', error);
+    }
+}
 
-        // Verificar acceso a la carpeta
-        try {
-          const testFolder = DriveApp.getFolderById(FOLDER_ID);
-          Logger.log('✅ Folder access successful: ' + testFolder.getName());
-        } catch (folderError) {
-          Logger.log('❌ Folder access error: ' + folderError.toString());
-          throw new Error('Cannot access Google Drive folder with ID: ' + FOLDER_ID + '. Error: ' + folderError.message);
+// ========================================
+// EVENT LISTENERS
+// ========================================
+
+function setupEventListeners() {
+    const form = document.getElementById('experienceForm');
+    if (form) {
+        form.addEventListener('submit', handleFormSubmit);
+    }
+    
+    setupFileHandlers();
+    
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(handleSearch, 300));
+    }
+    
+    const adminBtn = document.getElementById('adminBtn');
+    if (adminBtn) {
+        adminBtn.addEventListener('click', showAdminModal);
+    }
+    
+    setupModalHandlers();
+    setupPaginationHandlers();
+}
+
+function setupFileHandlers() {
+    const audioInput = document.getElementById('audioFile');
+    const audioArea = document.getElementById('audioUploadArea');
+    
+    if (audioInput && audioArea) {
+        audioInput.addEventListener('change', (e) => handleFileSelect(e, 'audio'));
+        audioArea.addEventListener('click', () => audioInput.click());
+        audioArea.addEventListener('dragover', handleDragOver);
+        audioArea.addEventListener('drop', (e) => handleFileDrop(e, 'audio'));
+    }
+    
+    const videoInput = document.getElementById('videoFile');
+    const videoArea = document.getElementById('videoUploadArea');
+    
+    if (videoInput && videoArea) {
+        videoInput.addEventListener('change', (e) => handleFileSelect(e, 'video'));
+        videoArea.addEventListener('click', () => videoInput.click());
+        videoArea.addEventListener('dragover', handleDragOver);
+        videoArea.addEventListener('drop', (e) => handleFileDrop(e, 'video'));
+    }
+}
+
+function handleDragOver(event) {
+    event.preventDefault();
+    event.currentTarget.classList.add('dragover');
+}
+
+function handleFileDrop(event, type) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const area = event.currentTarget;
+    area.classList.remove('dragover');
+    
+    const files = event.dataTransfer.files;
+    if (files.length > 0) {
+        const input = type === 'audio' ? 
+            document.getElementById('audioFile') : 
+            document.getElementById('videoFile');
+        
+        if (input) {
+            input.files = files;
+            handleFileSelect({ target: input }, type);
         }
-
-        // Guardar la experiencia
-        Logger.log('Starting saveExperience...');
-        result = saveExperience(data);
-        Logger.log('✅ Experience saved successfully');
-        break;
     }
-
-    const response = {
-      success: true,
-      message: 'Operation completed successfully',
-      action: action,
-      data: result,
-      timestamp: new Date().toISOString()
-    };
-
-    Logger.log('Sending success response');
-
-    return createResponse(response);
-
-  } catch (error) {
-    Logger.log('❌ CRITICAL ERROR in doPost: ' + error.toString());
-    Logger.log('Error name: ' + error.name);
-    Logger.log('Error stack: ' + error.stack);
-
-    const errorResponse = {
-      success: false,
-      message: error.toString(),
-      error: error.name || 'UnknownError',
-      timestamp: new Date().toISOString()
-    };
-
-    Logger.log('Sending error response');
-
-    return createResponse(errorResponse);
-  }
 }
 
-// ========================================
-// GUARDAR NUEVA EXPERIENCIA
-// ========================================
-
-function saveExperience(data) {
-  try {
-    Logger.log('🔄 Starting saveExperience function');
-
-    const folder = DriveApp.getFolderById(FOLDER_ID);
-    Logger.log('📁 Got folder: ' + folder.getName());
-
-    const spreadsheet = getOrCreateSpreadsheet(folder);
-    const sheet = spreadsheet.getActiveSheet();
-    Logger.log('📊 Got spreadsheet: ' + spreadsheet.getName());
-
-    // Generar ID único
-    const uniqueId = generateUniqueId();
-    Logger.log('🔑 Generated unique ID: ' + uniqueId);
-
-    // Crear nombre de carpeta
-    const timestamp = new Date(data.timestamp);
-    const dateStr = Utilities.formatDate(timestamp, Session.getScriptTimeZone(), 'yyyy-MM-dd_HH-mm');
-    const studentFolderName = `${data.studentName} - ${dateStr}`;
-
-    Logger.log('📂 Creating student folder: ' + studentFolderName);
-
-    // Crear carpeta del estudiante
-    const studentFolder = folder.createFolder(studentFolderName);
-    Logger.log('✅ Student folder created: ' + studentFolder.getName());
-
-    let audioUrl = '';
-    let videoUrl = '';
-    let audioFileId = '';
-    let videoFileId = '';
-
-    // Guardar archivo de audio si existe
-    if (data.audioFile && data.audioFile.data) {
-      try {
-        Logger.log('🎵 Processing audio file: ' + data.audioFile.name);
-        const audioBlob = Utilities.newBlob(
-          Utilities.base64Decode(data.audioFile.data),
-          data.audioFile.mimeType,
-          data.audioFile.name
-        );
-        const audioFile = studentFolder.createFile(audioBlob);
-
-        // Hacer el archivo público para que pueda reproducirse
-        audioFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-        audioFileId = audioFile.getId();
-        // Guardar URL en formato directo para reproducción
-        audioUrl = `https://drive.google.com/uc?export=download&id=${audioFileId}`;
-
-        Logger.log('✅ Audio file saved with ID: ' + audioFileId);
-        Logger.log('🔗 Direct Audio URL: ' + audioUrl);
-      } catch (audioError) {
-        Logger.log('⚠️ Error saving audio: ' + audioError.toString());
-      }
-    }
-
-    // Guardar archivo de video si existe
-    if (data.videoFile && data.videoFile.data) {
-      try {
-        Logger.log('🎥 Processing video file: ' + data.videoFile.name);
-        const videoBlob = Utilities.newBlob(
-          Utilities.base64Decode(data.videoFile.data),
-          data.videoFile.mimeType,
-          data.videoFile.name
-        );
-        const videoFile = studentFolder.createFile(videoBlob);
-
-        // Hacer el archivo público para que pueda reproducirse
-        videoFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-
-        videoFileId = videoFile.getId();
-        // Guardar URL en formato directo para reproducción
-        videoUrl = `https://drive.google.com/uc?export=download&id=${videoFileId}`;
-
-        Logger.log('✅ Video file saved with ID: ' + videoFileId);
-        Logger.log('🔗 Direct Video URL: ' + videoUrl);
-      } catch (videoError) {
-        Logger.log('⚠️ Error saving video: ' + videoError.toString());
-      }
-    }
-
-    // Crear documento descriptivo
-    Logger.log('📄 Creating student document');
-    const docFile = createStudentDocument(
-      studentFolder,
-      data.studentName,
-      data.experience,
-      timestamp,
-      audioUrl,
-      videoUrl,
-      data.audioFile ? data.audioFile.name : '',
-      data.videoFile ? data.videoFile.name : ''
-    );
-    Logger.log('✅ Document created: ' + docFile.getName());
-
-    // Guardar en la hoja de calculo
-    Logger.log('📝 Adding row to spreadsheet');
-    sheet.appendRow([
-      uniqueId,
-      timestamp,
-      data.studentName,
-      data.experience,
-      audioUrl,
-      videoUrl,
-      studentFolder.getUrl(),
-      docFile.getUrl(),
-      studentFolder.getId()
-    ]);
-    Logger.log('✅ Row added to spreadsheet');
-
-    const result = {
-      id: uniqueId,
-      studentName: data.studentName,
-      timestamp: data.timestamp,
-      audioUrl: audioUrl,
-      videoUrl: videoUrl,
-      folderUrl: studentFolder.getUrl(),
-      documentUrl: docFile.getUrl(),
-      folderId: studentFolder.getId()
-    };
-
-    Logger.log('🎉 saveExperience completed successfully');
-
-    return result;
-
-  } catch (error) {
-    Logger.log('❌ ERROR in saveExperience: ' + error.toString());
-    Logger.log('Error stack: ' + error.stack);
-    throw error;
-  }
-}
-
-// ========================================
-// OBTENER TODAS LAS EXPERIENCIAS
-// ========================================
-
-function getExperiencias(e) {
-  try {
-    Logger.log('📚 Starting getExperiencias function');
-
-    const folder = DriveApp.getFolderById(FOLDER_ID);
-    const spreadsheet = getOrCreateSpreadsheet(folder);
-    const sheet = spreadsheet.getActiveSheet();
-
-    Logger.log('📊 Reading spreadsheet data...');
-
-    const lastRow = sheet.getLastRow();
-
-    if (lastRow <= 1) {
-      Logger.log('📭 No experiences found');
-      return createResponse({
-        success: true,
-        message: 'No experiences found',
-        data: [],
-        count: 0,
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    // Leer todas las filas de datos
-    const dataRange = sheet.getRange(2, 1, lastRow - 1, 9);
-    const values = dataRange.getValues();
-
-    Logger.log('📊 Found ' + values.length + ' experiences');
-
-    // Transformar los datos
-    const experiences = values.map(row => {
-      return {
-        id: row[0],
-        timestamp: row[1],
-        studentName: row[2],
-        experience: row[3],
-        audioUrl: row[4] || null,
-        videoUrl: row[5] || null,
-        folderUrl: row[6] || null,
-        documentUrl: row[7] || null,
-        folderId: row[8] || null
-      };
+function handleFileSelect(event, type) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    console.log(`📁 Archivo seleccionado (${type}):`, {
+        name: file.name,
+        size: file.size,
+        type: file.type
     });
-
-    // Ordenar por fecha (más recientes primero)
-    experiences.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-
-    Logger.log('✅ Experiences retrieved and sorted');
-
-    return createResponse({
-      success: true,
-      message: 'Experiences retrieved successfully',
-      data: experiences,
-      count: experiences.length,
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error) {
-    Logger.log('❌ ERROR in getExperiencias: ' + error.toString());
-
-    return createResponse({
-      success: false,
-      message: error.toString(),
-      error: error.name || 'UnknownError',
-      timestamp: new Date().toISOString()
-    });
-  }
-}
-
-// ========================================
-// ELIMINAR UNA EXPERIENCIA
-// ========================================
-
-function deleteExperiencia(data) {
-  try {
-    Logger.log('🗑️ Starting deleteExperiencia function');
-
-    if (!data.id) {
-      throw new Error('Experience ID is required');
+    
+    const maxSize = type === 'audio' ? MAX_AUDIO_SIZE : MAX_VIDEO_SIZE;
+    
+    if (file.size > maxSize) {
+        showMessage(`Archivo muy grande. Máximo: ${formatFileSize(maxSize)}`, 'error');
+        event.target.value = '';
+        return;
     }
-
-    // VALIDACIÓN BACKEND: Verificar contraseña para eliminar
-    if (!data.password || data.password !== ADMIN_PASSWORD) {
-      Logger.log('❌ Unauthorized deletion attempt');
-      throw new Error('Unauthorized: Invalid admin credentials');
-    }
-
-    Logger.log('🔑 Admin validated, proceeding with deletion of ID: ' + data.id);
-
-    const folder = DriveApp.getFolderById(FOLDER_ID);
-    const spreadsheet = getOrCreateSpreadsheet(folder);
-    const sheet = spreadsheet.getActiveSheet();
-
-    const lastRow = sheet.getLastRow();
-    let rowToDelete = -1;
-    let folderId = null;
-
-    for (let i = 2; i <= lastRow; i++) {
-      const cellValue = sheet.getRange(i, 1).getValue();
-      if (cellValue === data.id) {
-        rowToDelete = i;
-        folderId = sheet.getRange(i, 9).getValue();
-        break;
-      }
-    }
-
-    if (rowToDelete === -1) {
-      throw new Error('Experience with ID "' + data.id + '" not found');
-    }
-
-    Logger.log('📍 Found experience at row: ' + rowToDelete);
-
-    // Eliminar carpeta de Drive
-    if (folderId) {
-      try {
-        const folderToDelete = DriveApp.getFolderById(folderId);
-        folderToDelete.setTrashed(true);
-        Logger.log('✅ Folder moved to trash: ' + folderId);
-      } catch (folderError) {
-        Logger.log('⚠️ Could not delete folder: ' + folderError.toString());
-      }
-    }
-
-    // Eliminar fila del spreadsheet
-    sheet.deleteRow(rowToDelete);
-    Logger.log('✅ Row deleted from spreadsheet');
-    Logger.log('🎉 Experience deleted successfully');
-
-    return {
-      deleted: true,
-      id: data.id,
-      message: 'Experience deleted successfully'
-    };
-
-  } catch (error) {
-    Logger.log('❌ ERROR in deleteExperiencia: ' + error.toString());
-    throw error;
-  }
-}
-
-// ========================================
-// CREAR DOCUMENTO DESCRIPTIVO
-// ========================================
-
-function createStudentDocument(folder, studentName, experience, timestamp, audioUrl, videoUrl, audioFileName, videoFileName) {
-  try {
-    Logger.log('📄 Creating Google Doc for: ' + studentName);
-
-    const doc = DocumentApp.create(`${studentName} - English Experience`);
-    const body = doc.getBody();
-
-    const title = body.appendParagraph('🎓 Student Experience Submission');
-    title.setHeading(DocumentApp.ParagraphHeading.HEADING1);
-    title.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
-
-    body.appendHorizontalRule();
-    body.appendParagraph('');
-
-    const nameHeader = body.appendParagraph('👤 Student Name:');
-    nameHeader.setBold(true);
-    nameHeader.setFontSize(14);
-
-    const nameValue = body.appendParagraph(studentName);
-    nameValue.setIndentStart(20);
-    nameValue.setFontSize(12);
-
-    body.appendParagraph('');
-
-    const dateHeader = body.appendParagraph('📅 Submission Date:');
-    dateHeader.setBold(true);
-    dateHeader.setFontSize(14);
-
-    const dateValue = body.appendParagraph(Utilities.formatDate(timestamp, Session.getScriptTimeZone(), 'MMMM dd, yyyy - hh:mm a'));
-    dateValue.setIndentStart(20);
-    dateValue.setFontSize(12);
-
-    body.appendParagraph('');
-    body.appendHorizontalRule();
-    body.appendParagraph('');
-
-    const expHeader = body.appendParagraph('📝 English Learning Experience:');
-    expHeader.setBold(true);
-    expHeader.setFontSize(14);
-
-    const expValue = body.appendParagraph(experience);
-    expValue.setIndentStart(20);
-    expValue.setFontSize(12);
-    expValue.setLineSpacing(1.5);
-
-    body.appendParagraph('');
-    body.appendHorizontalRule();
-    body.appendParagraph('');
-
-    const filesHeader = body.appendParagraph('📎 Attached Files:');
-    filesHeader.setBold(true);
-    filesHeader.setFontSize(14);
-
-    body.appendParagraph('');
-
-    if (audioUrl) {
-      const audioHeader = body.appendParagraph('🎵 Audio Recording:');
-      audioHeader.setBold(true);
-      audioHeader.setIndentStart(20);
-      audioHeader.setFontSize(12);
-
-      const audioLink = body.appendParagraph(`File: ${audioFileName}`);
-      audioLink.setIndentStart(40);
-      audioLink.setFontSize(11);
-
-      const audioLinkText = body.appendParagraph('🔗 Click here to listen');
-      audioLinkText.setIndentStart(40);
-      audioLinkText.setFontSize(11);
-      audioLinkText.setLinkUrl(audioUrl);
-      audioLinkText.setForegroundColor('#1155CC');
-      audioLinkText.setUnderline(true);
-
-      body.appendParagraph('');
-    }
-
-    if (videoUrl) {
-      const videoHeader = body.appendParagraph('🎥 Video Recording:');
-      videoHeader.setBold(true);
-      videoHeader.setIndentStart(20);
-      videoHeader.setFontSize(12);
-
-      const videoLink = body.appendParagraph(`File: ${videoFileName}`);
-      videoLink.setIndentStart(40);
-      videoLink.setFontSize(11);
-
-      const videoLinkText = body.appendParagraph('🔗 Click here to watch');
-      videoLinkText.setIndentStart(40);
-      videoLinkText.setFontSize(11);
-      videoLinkText.setLinkUrl(videoUrl);
-      videoLinkText.setForegroundColor('#1155CC');
-      videoLinkText.setUnderline(true);
-
-      body.appendParagraph('');
-    }
-
-    if (!audioUrl && !videoUrl) {
-      const noFiles = body.appendParagraph('📝 No audio or video files were uploaded.');
-      noFiles.setIndentStart(20);
-      noFiles.setFontSize(11);
-      noFiles.setItalic(true);
-      noFiles.setForegroundColor('#666666');
-    }
-
-    doc.saveAndClose();
-    Logger.log('💾 Document saved');
-
-    const docFile = DriveApp.getFileById(doc.getId());
-    folder.addFile(docFile);
-    DriveApp.getRootFolder().removeFile(docFile);
-    Logger.log('📁 Document moved to folder');
-
-    return docFile;
-
-  } catch (error) {
-    Logger.log('❌ ERROR creating document: ' + error.toString());
-    throw error;
-  }
-}
-
-// ========================================
-// OBTENER O CREAR SPREADSHEET
-// ========================================
-
-function getOrCreateSpreadsheet(folder) {
-  try {
-    const files = folder.getFilesByName(SPREADSHEET_NAME);
-
-    if (files.hasNext()) {
-      const file = files.next();
-      Logger.log('📊 Using existing spreadsheet');
-      return SpreadsheetApp.openById(file.getId());
+    
+    if (type === 'audio') {
+        handleAudioFile(file);
     } else {
-      Logger.log('📊 Creating new spreadsheet');
-
-      const spreadsheet = SpreadsheetApp.create(SPREADSHEET_NAME);
-      const sheet = spreadsheet.getActiveSheet();
-
-      sheet.appendRow([
-        'ID',
-        'Timestamp',
-        'Student Name',
-        'Experience',
-        'Audio URL',
-        'Video URL',
-        'Folder URL',
-        'Document URL',
-        'Folder ID'
-      ]);
-
-      const headerRange = sheet.getRange(1, 1, 1, 9);
-      headerRange.setFontWeight('bold');
-      headerRange.setBackground('#1e3a8a');
-      headerRange.setFontColor('#ffffff');
-
-      sheet.setColumnWidth(1, 180);
-      sheet.setColumnWidth(2, 150);
-      sheet.setColumnWidth(3, 150);
-      sheet.setColumnWidth(4, 300);
-      sheet.setColumnWidth(5, 200);
-      sheet.setColumnWidth(6, 200);
-      sheet.setColumnWidth(7, 200);
-      sheet.setColumnWidth(8, 200);
-      sheet.setColumnWidth(9, 200);
-
-      const spreadsheetFile = DriveApp.getFileById(spreadsheet.getId());
-      folder.addFile(spreadsheetFile);
-      DriveApp.getRootFolder().removeFile(spreadsheetFile);
-
-      Logger.log('✅ Spreadsheet created');
-      return spreadsheet;
+        handleVideoFile(file);
     }
-  } catch (error) {
-    Logger.log('❌ ERROR with spreadsheet: ' + error.toString());
-    throw error;
-  }
+}
+
+function handleAudioFile(file) {
+    const fileName = document.getElementById('audioFileName');
+    const preview = document.getElementById('audioPreview');
+    const player = document.getElementById('audioPlayer');
+    
+    if (fileName) fileName.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    
+    if (preview && player) {
+        const url = URL.createObjectURL(file);
+        player.src = url;
+        preview.style.display = 'block';
+        console.log('🎵 Audio preview configurado');
+    }
+}
+
+function handleVideoFile(file) {
+    const fileName = document.getElementById('videoFileName');
+    const preview = document.getElementById('videoPreview');
+    const player = document.getElementById('videoPlayer');
+    
+    if (fileName) fileName.textContent = `${file.name} (${formatFileSize(file.size)})`;
+    
+    if (preview && player) {
+        const url = URL.createObjectURL(file);
+        player.src = url;
+        preview.style.display = 'block';
+        console.log('🎥 Video preview configurado');
+    }
+}
+
+function removeAudio() {
+    const input = document.getElementById('audioFile');
+    const preview = document.getElementById('audioPreview');
+    const fileName = document.getElementById('audioFileName');
+    const player = document.getElementById('audioPlayer');
+    
+    if (input) input.value = '';
+    if (preview) preview.style.display = 'none';
+    if (fileName) fileName.textContent = 'Click here to select audio file';
+    if (player) {
+        player.pause();
+        URL.revokeObjectURL(player.src);
+        player.src = '';
+    }
+}
+
+function removeVideo() {
+    const input = document.getElementById('videoFile');
+    const preview = document.getElementById('videoPreview');
+    const fileName = document.getElementById('videoFileName');
+    const player = document.getElementById('videoPlayer');
+    
+    if (input) input.value = '';
+    if (preview) preview.style.display = 'none';
+    if (fileName) fileName.textContent = 'Click here to select video file';
+    if (player) {
+        player.pause();
+        URL.revokeObjectURL(player.src);
+        player.src = '';
+    }
 }
 
 // ========================================
-// GENERAR ID ÚNICO
+// ENVÍO DE FORMULARIO - MEJORADO
 // ========================================
 
-function generateUniqueId() {
-  const timestamp = new Date().getTime();
-  const random = Math.floor(Math.random() * 10000);
-  return 'EXP-' + timestamp + '-' + random;
+async function handleFormSubmit(event) {
+    event.preventDefault();
+    
+    const submitBtn = document.getElementById('submitBtn');
+    const originalText = submitBtn.innerHTML;
+    
+    try {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<div class="spinner"></div>Uploading...`;
+        
+        const formData = new FormData(event.target);
+        const data = {
+            action: 'submitExperience',
+            studentName: formData.get('studentName'),
+            experience: formData.get('experience')
+        };
+        
+        console.log('📤 Preparando datos para envío...');
+        
+        const audioFile = formData.get('audioFile');
+        const videoFile = formData.get('videoFile');
+        
+        if (audioFile && audioFile.size > 0) {
+            showMessage('Procesando audio...', 'info');
+            console.log('🎵 Convirtiendo audio a base64...');
+            data.audioFile = await fileToBase64(audioFile);
+            console.log('✅ Audio convertido');
+        }
+        
+        if (videoFile && videoFile.size > 0) {
+            showMessage('Procesando video...', 'info');
+            console.log('🎥 Convirtiendo video a base64...');
+            data.videoFile = await fileToBase64(videoFile);
+            console.log('✅ Video convertido');
+        }
+        
+        showMessage('Enviando experiencia...', 'info');
+        console.log('📨 Enviando datos al servidor...');
+        
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        console.log('📥 Respuesta del servidor:', result);
+        
+        if (result.success) {
+            showMessage('¡Experiencia compartida exitosamente!', 'success');
+            console.log('✅ Experiencia guardada con medios:', result.data.mediaInfo);
+            
+            event.target.reset();
+            removeAudio();
+            removeVideo();
+            
+            await loadPublications();
+            
+            const forumSection = document.getElementById('forumSection');
+            if (forumSection) {
+                forumSection.scrollIntoView({ behavior: 'smooth' });
+            }
+        } else {
+            throw new Error(result.message || 'Error al enviar');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error enviando experiencia:', error);
+        showMessage('Error: ' + error.message, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    }
+}
+
+async function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const base64 = reader.result.split(',')[1];
+            resolve({
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                data: base64
+            });
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
 }
 
 // ========================================
-// FUNCIÓN DE PRUEBA
+// CARGAR PUBLICACIONES - MEJORADO
 // ========================================
 
-function testDriveAccess() {
-  try {
-    Logger.log('=== TESTING DRIVE ACCESS ===');
+async function loadPublications() {
+    const container = document.getElementById('experiencesContainer');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+    const emptyState = document.getElementById('emptyState');
+    
+    try {
+        console.log('📋 Cargando publicaciones...');
+        
+        if (loadingSpinner) loadingSpinner.style.display = 'flex';
+        if (emptyState) emptyState.style.display = 'none';
+        
+        const url = `${API_URL}?action=getPublications&t=${Date.now()}`;
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        console.log('📥 Respuesta de publicaciones:', {
+            success: result.success,
+            total: result.total,
+            hasData: !!result.data
+        });
+        
+        if (result.success) {
+            allPublications = result.data || [];
+            filteredPublications = [...allPublications];
+            
+            console.log(`📊 Publicaciones cargadas: ${allPublications.length}`);
+            
+            // Log de medios
+            const withAudio = allPublications.filter(p => p.audioUrl && p.audioUrl !== '').length;
+            const withVideo = allPublications.filter(p => p.videoUrl && p.videoUrl !== '').length;
+            console.log(`🎵 Con audio: ${withAudio}, 🎥 Con video: ${withVideo}`);
+            
+            if (allPublications.length === 0) {
+                showEmptyState();
+            } else {
+                displayPublications();
+            }
+        } else {
+            throw new Error(result.message || 'Error al cargar publicaciones');
+        }
+        
+    } catch (error) {
+        console.error('❌ Error cargando publicaciones:', error);
+        showMessage('Error cargando: ' + error.message, 'error');
+        showEmptyState();
+    } finally {
+        if (loadingSpinner) loadingSpinner.style.display = 'none';
+    }
+}
 
-    const folder = DriveApp.getFolderById(FOLDER_ID);
-    Logger.log('✅ Folder access: ' + folder.getName());
+function displayPublications() {
+    const container = document.getElementById('experiencesContainer');
+    const emptyState = document.getElementById('emptyState');
+    
+    if (!container) return;
+    if (emptyState) emptyState.style.display = 'none';
+    
+    const totalPages = Math.ceil(filteredPublications.length / publicationsPerPage);
+    const startIndex = (currentPage - 1) * publicationsPerPage;
+    const endIndex = startIndex + publicationsPerPage;
+    const publicationsToShow = filteredPublications.slice(startIndex, endIndex);
+    
+    console.log(`📄 Mostrando página ${currentPage}, publicaciones ${startIndex}-${endIndex}`);
+    
+    container.innerHTML = publicationsToShow.map(pub => {
+        console.log(`🔍 Publicación ${pub.id}: Audio=${!!pub.audioUrl}, Video=${!!pub.videoUrl}`);
+        return generatePublicationHTML(pub);
+    }).join('');
+    
+    updatePagination(totalPages);
+    setupMediaPlayers();
+    
+    // Cargar comentarios para cada publicación
+    paginatedPublications.forEach(async (pub) => {
+        const comments = await loadComments(pub.id);
+        const commentsContainer = document.getElementById(`comments-${pub.id}`);
+        if (commentsContainer) {
+            commentsContainer.innerHTML = renderCommentsList(comments, pub.id);
+        }
+    });
+    
+    // Setup character counter for comment inputs
+    document.querySelectorAll('.comment-text-input').forEach(textarea => {
+        const counter = textarea.closest('.comment-form').querySelector('.char-counter');
+        
+        textarea.addEventListener('input', () => {
+            const length = textarea.value.length;
+            counter.textContent = `${length}/500`;
+            
+            if (length > 450) {
+                counter.style.color = '#ef4444';
+            } else {
+                counter.style.color = '#6b7280';
+            }
+        });
+    });
+}
 
-    const testFolderName = 'TEST - ' + new Date().getTime();
-    const testFolder = folder.createFolder(testFolderName);
-    Logger.log('✅ Test folder created');
+// ========================================
+// GENERAR HTML DE PUBLICACIÓN - MEJORADO
+// ========================================
 
-    const testFile = testFolder.createFile('test.txt', 'Test file at ' + new Date());
-    Logger.log('✅ Test file created');
+function generatePublicationHTML(pub) {
+    const formattedDate = formatDate(pub.timestamp);
+    const deleteButton = isAdminMode ? 
+        `<button class="delete-btn" onclick="deletePublication('${pub.id}')" title="Eliminar">
+            <svg class="icon-btn-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+            </svg>
+        </button>` : '';
+    
+    return `
+        <div class="publication-card" data-id="${pub.id}">
+            <div class="publication-header">
+                <div class="student-info">
+                    <div class="student-avatar">
+                        <svg class="icon-avatar" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                    </div>
+                    <div class="student-details">
+                        <h3 class="student-name">${escapeHtml(pub.studentName)}</h3>
+                        <p class="publication-date">
+                            <svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                            </svg>
+                            ${formattedDate}
+                        </p>
+                    </div>
+                </div>
+                <div class="publication-actions">
+                    ${deleteButton}
+                    ${isAdminMode ? `
+                    <button class="folder-btn" onclick="openFolder('${pub.folderUrl}')" title="Ver archivos">
+                        <svg class="icon-btn-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                        </svg>
+                    </button>
+                    ` : ''}
+                </div>
+            </div>
+            
+            <div class="publication-content">
+                <div class="experience-text">
+                    <svg class="icon-content" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                    </svg>
+                    <p>${escapeHtml(pub.experience)}</p>
+                </div>
+                
+                ${generateMediaHTMLImproved(pub)}
+            </div>
+            
+            <div class="publication-footer">
+                <div class="publication-stats">
+                    <span class="stat-item">
+                        <svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16"/>
+                        </svg>
+                        ID: ${pub.id.split('-')[1]}
+                    </span>
+                    ${pub.mediaInfo && (pub.mediaInfo.hasAudio || pub.mediaInfo.hasVideo) ? `
+                        <span class="stat-item">
+                            <svg class="icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4"/>
+                            </svg>
+                            Media:
+                            ${pub.mediaInfo.hasAudio ? '<svg class="icon-inline-small" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>' : ''}
+                            ${pub.mediaInfo.hasVideo ? '<svg class="icon-inline-small" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>' : ''}
+                        </span>
+                    ` : ''}
+                </div>
+                
+                <div class="publication-links">
+                    ${pub.documentUrl ? `
+                        <a href="${pub.documentUrl}" target="_blank" class="link-btn" title="Ver documento">
+                            <svg class="icon-btn-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            </svg>
+                            Documento
+                        </a>
+                    ` : ''}
+                </div>
+            </div>
+            
+            <!-- Sección de Comentarios -->
+            <div class="comments-section" data-pub-id="${pub.id}">
+                <div class="comments-header">
+                    <svg class="icon-comments" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                    </svg>
+                    <h4>Comentarios</h4>
+                </div>
+                
+                <!-- Formulario de comentario -->
+                <form class="comment-form" onsubmit="submitCommentForm(event, '${pub.id}')">
+                    <input 
+                        type="text" 
+                        class="comment-name-input" 
+                        placeholder="Tu nombre" 
+                        maxlength="50"
+                        required
+                    />
+                    <textarea 
+                        class="comment-text-input" 
+                        placeholder="Escribe tu comentario (máximo 500 caracteres)..." 
+                        rows="3"
+                        maxlength="500"
+                        required
+                    ></textarea>
+                    <div class="comment-form-footer">
+                        <span class="char-counter">0/500</span>
+                        <button type="submit" class="comment-submit-btn">
+                            <svg class="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                            </svg>
+                            Comentar
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Lista de comentarios -->
+                <div class="comments-list" id="comments-${pub.id}">
+                    <div class="loading-comments">Cargando comentarios...</div>
+                </div>
+            </div>
+        </div>
+    `;
+}
 
-    const spreadsheet = getOrCreateSpreadsheet(folder);
-    Logger.log('✅ Spreadsheet access OK');
+// ========================================
+// GENERAR HTML DE MEDIOS - SOLO LINKS
+// ========================================
 
-    const testId = generateUniqueId();
-    const sheet = spreadsheet.getActiveSheet();
-    sheet.appendRow([
-      testId,
-      new Date(),
-      'Test Student',
-      'Test experience',
-      '',
-      '',
-      testFolder.getUrl(),
-      'test doc',
-      testFolder.getId()
-    ]);
-    Logger.log('✅ Test row added');
+function generateMediaHTMLImproved(pub) {
+    let mediaHTML = '';
 
-    Logger.log('🎉 ALL TESTS PASSED');
+    if (!pub.audioUrl && !pub.videoUrl) {
+        console.log(`ℹ️ Publicación ${pub.id}: Sin archivos multimedia`);
+        return mediaHTML;
+    }
 
-    return {
-      success: true,
-      folderName: folder.getName(),
-      testId: testId
+    console.log(`🎬 Publicación ${pub.id}: Generando links para medios`);
+
+    mediaHTML += '<div class="media-section">';
+
+    if (pub.audioUrl && pub.audioUrl.trim() !== '') {
+        console.log(`🎵 Agregando link de audio para ${pub.id}`);
+
+        mediaHTML += `
+            <a href="${pub.audioUrl}" target="_blank" class="media-link audio-link">
+                <div class="media-link-icon">
+                    <svg class="icon-media-link" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/>
+                    </svg>
+                </div>
+                <div class="media-link-content">
+                    <strong class="media-link-title">Audio Recording</strong>
+                    ${pub.mediaInfo && pub.mediaInfo.audioFileName ? `<span class="media-link-filename">${pub.mediaInfo.audioFileName}</span>` : '<span class="media-link-filename">Click to open audio file</span>'}
+                </div>
+                <div class="media-link-arrow">
+                    <svg class="icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                </div>
+            </a>
+        `;
+    }
+
+    if (pub.videoUrl && pub.videoUrl.trim() !== '') {
+        console.log(`🎥 Agregando link de video para ${pub.id}`);
+
+        mediaHTML += `
+            <a href="${pub.videoUrl}" target="_blank" class="media-link video-link">
+                <div class="media-link-icon">
+                    <svg class="icon-media-link" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+                <div class="media-link-content">
+                    <strong class="media-link-title">Video Recording</strong>
+                    ${pub.mediaInfo && pub.mediaInfo.videoFileName ? `<span class="media-link-filename">${pub.mediaInfo.videoFileName}</span>` : '<span class="media-link-filename">Click to open video file</span>'}
+                </div>
+                <div class="media-link-arrow">
+                    <svg class="icon-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/>
+                    </svg>
+                </div>
+            </a>
+        `;
+    }
+
+    mediaHTML += '</div>';
+
+    return mediaHTML;
+}
+
+// ========================================
+// SETUP MEDIA LINKS
+// ========================================
+
+function setupMediaPlayers() {
+    // Ya no necesitamos configurar reproductores
+    // Solo usamos links directos a Drive
+    console.log('📎 Media links configurados');
+}
+
+// ========================================
+// RESTO DE FUNCIONES (búsqueda, admin, etc.)
+// ========================================
+
+function handleSearch(event) {
+    const query = event.target.value.toLowerCase().trim();
+    
+    if (query === '') {
+        filteredPublications = [...allPublications];
+    } else {
+        filteredPublications = allPublications.filter(pub => 
+            pub.studentName.toLowerCase().includes(query) ||
+            pub.experience.toLowerCase().includes(query) ||
+            pub.id.toLowerCase().includes(query)
+        );
+    }
+    
+    currentPage = 1;
+    displayPublications();
+}
+
+function showEmptyState() {
+    const container = document.getElementById('experiencesContainer');
+    const emptyState = document.getElementById('emptyState');
+    
+    if (container) container.innerHTML = '';
+    if (emptyState) emptyState.style.display = 'block';
+}
+
+// ========================================
+// FUNCIONES DE ADMIN Y UTILIDADES
+// ========================================
+
+function setupPaginationHandlers() {
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    
+    if (prevBtn) {
+        prevBtn.addEventListener('click', () => {
+            if (currentPage > 1) {
+                currentPage--;
+                displayPublications();
+            }
+        });
+    }
+    
+    if (nextBtn) {
+        nextBtn.addEventListener('click', () => {
+            const totalPages = Math.ceil(filteredPublications.length / publicationsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                displayPublications();
+            }
+        });
+    }
+}
+
+function updatePagination(totalPages) {
+    const pagination = document.getElementById('pagination');
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const paginationInfo = document.getElementById('paginationInfo');
+    
+    if (totalPages <= 1) {
+        if (pagination) pagination.style.display = 'none';
+        return;
+    }
+    
+    if (pagination) pagination.style.display = 'flex';
+    if (prevBtn) prevBtn.disabled = currentPage <= 1;
+    if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+    if (paginationInfo) paginationInfo.textContent = `Página ${currentPage} de ${totalPages}`;
+}
+
+function setupModalHandlers() {
+    const modal = document.getElementById('adminModal');
+    const cancelBtn = document.getElementById('modalCancelBtn');
+    const confirmBtn = document.getElementById('modalConfirmBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+    const passwordInput = document.getElementById('adminPassword');
+    
+    if (cancelBtn) cancelBtn.addEventListener('click', hideAdminModal);
+    if (confirmBtn) confirmBtn.addEventListener('click', handleAdminLogin);
+    if (logoutBtn) logoutBtn.addEventListener('click', disableAdminMode);
+    
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') handleAdminLogin();
+        });
+    }
+    
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) hideAdminModal();
+        });
+    }
+}
+
+function showAdminModal() {
+    const modal = document.getElementById('adminModal');
+    const passwordInput = document.getElementById('adminPassword');
+    const errorDiv = document.getElementById('modalError');
+    
+    if (modal) modal.style.display = 'flex';
+    if (passwordInput) {
+        passwordInput.value = '';
+        passwordInput.focus();
+    }
+    if (errorDiv) errorDiv.style.display = 'none';
+}
+
+function hideAdminModal() {
+    const modal = document.getElementById('adminModal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function handleAdminLogin() {
+    const passwordInput = document.getElementById('adminPassword');
+    const confirmBtn = document.getElementById('modalConfirmBtn');
+    
+    const password = passwordInput.value.trim();
+    if (!password) {
+        showModalError('Ingresa la contraseña');
+        return;
+    }
+    
+    try {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Validando...';
+        
+        const url = `${API_URL}?action=validateAdmin&password=${encodeURIComponent(password)}`;
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        if (result.success && result.data.valid) {
+            enableAdminMode();
+            hideAdminModal();
+            showMessage('Acceso de admin concedido', 'success');
+            localStorage.setItem('adminMode', 'true');
+        } else {
+            showModalError('Contraseña inválida');
+        }
+        
+    } catch (error) {
+        showModalError('Error validando contraseña');
+    } finally {
+        confirmBtn.disabled = false;
+        confirmBtn.textContent = 'Login';
+    }
+}
+
+function showModalError(message) {
+    const errorDiv = document.getElementById('modalError');
+    if (errorDiv) {
+        errorDiv.textContent = message;
+        errorDiv.style.display = 'block';
+    }
+}
+
+function enableAdminMode() {
+    isAdminMode = true;
+    
+    const adminBanner = document.getElementById('adminBanner');
+    const cleanBtn = document.getElementById('cleanBtn');
+    
+    if (adminBanner) adminBanner.style.display = 'flex';
+    if (cleanBtn) cleanBtn.style.display = 'inline-flex';
+    
+    displayPublications();
+}
+
+function disableAdminMode() {
+    isAdminMode = false;
+    
+    const adminBanner = document.getElementById('adminBanner');
+    const cleanBtn = document.getElementById('cleanBtn');
+    
+    if (adminBanner) adminBanner.style.display = 'none';
+    if (cleanBtn) cleanBtn.style.display = 'none';
+    
+    localStorage.removeItem('adminMode');
+    displayPublications();
+    showMessage('Modo admin desactivado', 'info');
+}
+
+async function deletePublication(publicationId) {
+    if (!isAdminMode) return;
+    
+    if (!confirm('¿Eliminar esta publicación? No se puede deshacer.')) return;
+    
+    try {
+        showMessage('Eliminando...', 'info');
+        
+        const password = 'Ldirinem2025';
+        const url = `${API_URL}?action=deletePublication&id=${encodeURIComponent(publicationId)}&password=${encodeURIComponent(password)}`;
+        
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Publicación eliminada', 'success');
+            await loadPublications();
+        } else {
+            throw new Error(result.message || 'Error al eliminar');
+        }
+        
+    } catch (error) {
+        showMessage('Error eliminando: ' + error.message, 'error');
+    }
+}
+
+// ========================================
+// SISTEMA DE COMENTARIOS
+// ========================================
+
+async function loadComments(publicationId) {
+    try {
+        const url = `${API_URL}?action=getComments&publicationId=${encodeURIComponent(publicationId)}&t=${Date.now()}`;
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        if (result.success) {
+            return result.data.comments || [];
+        }
+        return [];
+    } catch (error) {
+        console.error('Error loading comments:', error);
+        return [];
+    }
+}
+
+async function submitCommentForm(event, publicationId) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const nameInput = form.querySelector('.comment-name-input');
+    const commentInput = form.querySelector('.comment-text-input');
+    const submitBtn = form.querySelector('.comment-submit-btn');
+    
+    const name = nameInput.value.trim();
+    const comment = commentInput.value.trim();
+    
+    if (!name || !comment) {
+        showMessage('Por favor completa todos los campos', 'error');
+        return;
+    }
+    
+    if (comment.length > 500) {
+        showMessage('El comentario es muy largo (máximo 500 caracteres)', 'error');
+        return;
+    }
+    
+    try {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Enviando...';
+        
+        const data = {
+            action: 'submitComment',
+            publicationId: publicationId,
+            name: name,
+            comment: comment
+        };
+        
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Comentario publicado', 'success');
+            nameInput.value = '';
+            commentInput.value = '';
+            
+            // Recargar comentarios
+            await refreshComments(publicationId);
+        } else {
+            throw new Error(result.message || 'Error al publicar comentario');
+        }
+        
+    } catch (error) {
+        showMessage('Error: ' + error.message, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Comentar';
+    }
+}
+
+async function deleteCommentBtn(publicationId, commentId) {
+    if (!isAdminMode) return;
+    
+    if (!confirm('¿Eliminar este comentario?')) return;
+    
+    try {
+        const password = 'Ldirinem2025';
+        const data = {
+            action: 'deleteComment',
+            publicationId: publicationId,
+            commentId: commentId,
+            password: password
+        };
+        
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Comentario eliminado', 'success');
+            await refreshComments(publicationId);
+        } else {
+            throw new Error(result.message || 'Error al eliminar');
+        }
+        
+    } catch (error) {
+        showMessage('Error: ' + error.message, 'error');
+    }
+}
+
+async function refreshComments(publicationId) {
+    const commentsContainer = document.querySelector(`[data-pub-id="${publicationId}"] .comments-list`);
+    if (!commentsContainer) return;
+    
+    const comments = await loadComments(publicationId);
+    commentsContainer.innerHTML = renderCommentsList(comments, publicationId);
+}
+
+function renderCommentsList(comments, publicationId) {
+    if (comments.length === 0) {
+        return `
+            <div class="no-comments">
+                <svg class="icon-no-comments" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+                <p>No hay comentarios aún. ¡Sé el primero en comentar!</p>
+            </div>
+        `;
+    }
+    
+    return comments.map(c => {
+        const deleteBtn = isAdminMode ? `
+            <button class="comment-delete-btn" onclick="deleteCommentBtn('${publicationId}', '${c.id}')" title="Eliminar comentario">
+                <svg class="icon-delete-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+            </button>
+        ` : '';
+        
+        return `
+            <div class="comment-item">
+                <div class="comment-header">
+                    <div class="comment-author">
+                        <svg class="icon-user-comment" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        <strong>${escapeHtml(c.name)}</strong>
+                    </div>
+                    <div class="comment-meta">
+                        <span class="comment-date">${formatDate(c.timestamp)}</span>
+                        ${deleteBtn}
+                    </div>
+                </div>
+                <p class="comment-text">${escapeHtml(c.comment)}</p>
+            </div>
+        `;
+    }).join('');
+}
+
+async function deletePublication(publicationId) {
+    if (!isAdminMode) return;
+    
+    if (!confirm('¿Eliminar esta publicación? No se puede deshacer.')) return;
+    
+    try {
+        showMessage('Eliminando...', 'info');
+        
+        const password = 'Ldirinem2025';
+        const url = `${API_URL}?action=deletePublication&id=${encodeURIComponent(publicationId)}&password=${encodeURIComponent(password)}`;
+        
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Publicación eliminada', 'success');
+            await loadPublications();
+        } else {
+            throw new Error(result.message || 'Error al eliminar');
+        }
+        
+    } catch (error) {
+        showMessage('Error eliminando: ' + error.message, 'error');
+    }
+}
+
+async function cleanOrphanRecords() {
+    if (!isAdminMode) return;
+    
+    if (!confirm('¿Limpiar registros huérfanos?')) return;
+    
+    try {
+        showMessage('Limpiando...', 'info');
+        
+        const password = 'Ldirinem2025';
+        const url = `${API_URL}?action=cleanOrphanRecords&password=${encodeURIComponent(password)}`;
+        
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage(`Limpieza completa. ${result.data.deleted} registros eliminados.`, 'success');
+            if (result.data.deleted > 0) {
+                await loadPublications();
+            }
+        } else {
+            throw new Error(result.message);
+        }
+        
+    } catch (error) {
+        showMessage('Error limpiando: ' + error.message, 'error');
+    }
+}
+
+// ========================================
+// UTILIDADES
+// ========================================
+
+function openFolder(folderUrl) {
+    if (folderUrl) window.open(folderUrl, '_blank');
+}
+
+function formatDate(dateString) {
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch {
+        return dateString;
+    }
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
     };
+}
 
-  } catch (error) {
-    Logger.log('❌ Test failed: ' + error.toString());
-    throw error;
-  }
+function showMessage(message, type = 'info') {
+    const statusDiv = document.getElementById('statusMessage');
+    if (!statusDiv) return;
+    
+    statusDiv.className = `status-message ${type}`;
+    statusDiv.textContent = message;
+    statusDiv.style.display = 'block';
+    
+    setTimeout(() => {
+        statusDiv.style.display = 'none';
+    }, 5000);
 }

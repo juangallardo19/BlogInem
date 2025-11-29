@@ -2,7 +2,7 @@
 // FRONTEND ARREGLADO PARA MEDIOS
 // ========================================
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbzhIM_UXuItRF0EigqMt6FDoXSuMTT7GPvF3tIbBPDbOuU9yFcgP4NVdEn8ohl85f2L/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbyExUYejfBlLkdRF3kaFfDsj8YoqqaJ_zX_4lgi8pgMrgHhi4S3kHB-G4tAlJDf2YJH/exec';
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30MB
 
@@ -383,6 +383,31 @@ function displayPublications() {
     
     updatePagination(totalPages);
     setupMediaPlayers();
+    
+    // Cargar comentarios para cada publicación
+    paginatedPublications.forEach(async (pub) => {
+        const comments = await loadComments(pub.id);
+        const commentsContainer = document.getElementById(`comments-${pub.id}`);
+        if (commentsContainer) {
+            commentsContainer.innerHTML = renderCommentsList(comments, pub.id);
+        }
+    });
+    
+    // Setup character counter for comment inputs
+    document.querySelectorAll('.comment-text-input').forEach(textarea => {
+        const counter = textarea.closest('.comment-form').querySelector('.char-counter');
+        
+        textarea.addEventListener('input', () => {
+            const length = textarea.value.length;
+            counter.textContent = `${length}/500`;
+            
+            if (length > 450) {
+                counter.style.color = '#ef4444';
+            } else {
+                counter.style.color = '#6b7280';
+            }
+        });
+    });
 }
 
 // ========================================
@@ -469,6 +494,48 @@ function generatePublicationHTML(pub) {
                             Documento
                         </a>
                     ` : ''}
+                </div>
+            </div>
+            
+            <!-- Sección de Comentarios -->
+            <div class="comments-section" data-pub-id="${pub.id}">
+                <div class="comments-header">
+                    <svg class="icon-comments" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                    </svg>
+                    <h4>Comentarios</h4>
+                </div>
+                
+                <!-- Formulario de comentario -->
+                <form class="comment-form" onsubmit="submitCommentForm(event, '${pub.id}')">
+                    <input 
+                        type="text" 
+                        class="comment-name-input" 
+                        placeholder="Tu nombre" 
+                        maxlength="50"
+                        required
+                    />
+                    <textarea 
+                        class="comment-text-input" 
+                        placeholder="Escribe tu comentario (máximo 500 caracteres)..." 
+                        rows="3"
+                        maxlength="500"
+                        required
+                    ></textarea>
+                    <div class="comment-form-footer">
+                        <span class="char-counter">0/500</span>
+                        <button type="submit" class="comment-submit-btn">
+                            <svg class="icon-send" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                            </svg>
+                            Comentar
+                        </button>
+                    </div>
+                </form>
+                
+                <!-- Lista de comentarios -->
+                <div class="comments-list" id="comments-${pub.id}">
+                    <div class="loading-comments">Cargando comentarios...</div>
                 </div>
             </div>
         </div>
@@ -735,6 +802,198 @@ function disableAdminMode() {
     localStorage.removeItem('adminMode');
     displayPublications();
     showMessage('Modo admin desactivado', 'info');
+}
+
+async function deletePublication(publicationId) {
+    if (!isAdminMode) return;
+    
+    if (!confirm('¿Eliminar esta publicación? No se puede deshacer.')) return;
+    
+    try {
+        showMessage('Eliminando...', 'info');
+        
+        const password = 'Ldirinem2025';
+        const url = `${API_URL}?action=deletePublication&id=${encodeURIComponent(publicationId)}&password=${encodeURIComponent(password)}`;
+        
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Publicación eliminada', 'success');
+            await loadPublications();
+        } else {
+            throw new Error(result.message || 'Error al eliminar');
+        }
+        
+    } catch (error) {
+        showMessage('Error eliminando: ' + error.message, 'error');
+    }
+}
+
+// ========================================
+// SISTEMA DE COMENTARIOS
+// ========================================
+
+async function loadComments(publicationId) {
+    try {
+        const url = `${API_URL}?action=getComments&publicationId=${encodeURIComponent(publicationId)}&t=${Date.now()}`;
+        const response = await fetch(url);
+        const result = await response.json();
+        
+        if (result.success) {
+            return result.data.comments || [];
+        }
+        return [];
+    } catch (error) {
+        console.error('Error loading comments:', error);
+        return [];
+    }
+}
+
+async function submitCommentForm(event, publicationId) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const nameInput = form.querySelector('.comment-name-input');
+    const commentInput = form.querySelector('.comment-text-input');
+    const submitBtn = form.querySelector('.comment-submit-btn');
+    
+    const name = nameInput.value.trim();
+    const comment = commentInput.value.trim();
+    
+    if (!name || !comment) {
+        showMessage('Por favor completa todos los campos', 'error');
+        return;
+    }
+    
+    if (comment.length > 500) {
+        showMessage('El comentario es muy largo (máximo 500 caracteres)', 'error');
+        return;
+    }
+    
+    try {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Enviando...';
+        
+        const data = {
+            action: 'submitComment',
+            publicationId: publicationId,
+            name: name,
+            comment: comment
+        };
+        
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Comentario publicado', 'success');
+            nameInput.value = '';
+            commentInput.value = '';
+            
+            // Recargar comentarios
+            await refreshComments(publicationId);
+        } else {
+            throw new Error(result.message || 'Error al publicar comentario');
+        }
+        
+    } catch (error) {
+        showMessage('Error: ' + error.message, 'error');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Comentar';
+    }
+}
+
+async function deleteCommentBtn(publicationId, commentId) {
+    if (!isAdminMode) return;
+    
+    if (!confirm('¿Eliminar este comentario?')) return;
+    
+    try {
+        const password = 'Ldirinem2025';
+        const data = {
+            action: 'deleteComment',
+            publicationId: publicationId,
+            commentId: commentId,
+            password: password
+        };
+        
+        const response = await fetch(API_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showMessage('Comentario eliminado', 'success');
+            await refreshComments(publicationId);
+        } else {
+            throw new Error(result.message || 'Error al eliminar');
+        }
+        
+    } catch (error) {
+        showMessage('Error: ' + error.message, 'error');
+    }
+}
+
+async function refreshComments(publicationId) {
+    const commentsContainer = document.querySelector(`[data-pub-id="${publicationId}"] .comments-list`);
+    if (!commentsContainer) return;
+    
+    const comments = await loadComments(publicationId);
+    commentsContainer.innerHTML = renderCommentsList(comments, publicationId);
+}
+
+function renderCommentsList(comments, publicationId) {
+    if (comments.length === 0) {
+        return `
+            <div class="no-comments">
+                <svg class="icon-no-comments" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+                <p>No hay comentarios aún. ¡Sé el primero en comentar!</p>
+            </div>
+        `;
+    }
+    
+    return comments.map(c => {
+        const deleteBtn = isAdminMode ? `
+            <button class="comment-delete-btn" onclick="deleteCommentBtn('${publicationId}', '${c.id}')" title="Eliminar comentario">
+                <svg class="icon-delete-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+            </button>
+        ` : '';
+        
+        return `
+            <div class="comment-item">
+                <div class="comment-header">
+                    <div class="comment-author">
+                        <svg class="icon-user-comment" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                        </svg>
+                        <strong>${escapeHtml(c.name)}</strong>
+                    </div>
+                    <div class="comment-meta">
+                        <span class="comment-date">${formatDate(c.timestamp)}</span>
+                        ${deleteBtn}
+                    </div>
+                </div>
+                <p class="comment-text">${escapeHtml(c.comment)}</p>
+            </div>
+        `;
+    }).join('');
 }
 
 async function deletePublication(publicationId) {
