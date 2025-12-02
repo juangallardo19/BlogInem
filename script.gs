@@ -385,7 +385,7 @@ function displayPublications() {
     setupMediaPlayers();
     
     // Cargar comentarios para cada publicación
-    paginatedPublications.forEach(async (pub) => {
+    publicationsToShow.forEach(async (pub) => {
         const comments = await loadComments(pub.id);
         const commentsContainer = document.getElementById(`comments-${pub.id}`);
         if (commentsContainer) {

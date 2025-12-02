@@ -1001,31 +1001,6 @@ function renderCommentsList(comments, publicationId) {
     }).join('');
 }
 
-async function deletePublication(publicationId) {
-    if (!isAdminMode) return;
-    
-    if (!confirm('Delete this publication? This cannot be undone.')) return;
-    
-    try {
-        showMessage('Deleting...', 'info');
-        
-        const password = 'Ldirinem2025';
-        const url = `${API_URL}?action=deletePublication&id=${encodeURIComponent(publicationId)}&password=${encodeURIComponent(password)}`;
-        
-        const response = await fetch(url);
-        const result = await response.json();
-        
-        if (result.success) {
-            showMessage('Publication deleted', 'success');
-            await loadPublications();
-        } else {
-            throw new Error(result.message || 'Error al eliminar');
-        }
-        
-    } catch (error) {
-        showMessage('Error deleting: ' + error.message, 'error');
-    }
-}
 
 async function cleanOrphanRecords() {
     if (!isAdminMode) return;
