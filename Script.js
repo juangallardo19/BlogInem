@@ -792,27 +792,42 @@ function disableAdminMode() {
 }
 
 async function deletePublication(publicationId) {
-    if (!isAdminMode) return;
-    
-    if (!confirm('¿Eliminar esta publicación? No se puede deshacer.')) return;
-    
+    console.log('🗑️ deletePublication llamada con ID:', publicationId);
+    console.log('🔐 isAdminMode:', isAdminMode);
+
+    if (!isAdminMode) {
+        console.warn('❌ No está en modo admin');
+        showMessage('Debes estar en modo admin para eliminar', 'error');
+        return;
+    }
+
+    if (!confirm('¿Eliminar esta publicación? No se puede deshacer.')) {
+        console.log('ℹ️ Usuario canceló la eliminación');
+        return;
+    }
+
     try {
         showMessage('Eliminando...', 'info');
-        
+        console.log('📤 Enviando solicitud de eliminación...');
+
         const password = 'Ldirinem2025';
         const url = `${API_URL}?action=deletePublication&id=${encodeURIComponent(publicationId)}&password=${encodeURIComponent(password)}`;
-        
+        console.log('🌐 URL:', url);
+
         const response = await fetch(url);
         const result = await response.json();
-        
+        console.log('📥 Respuesta del servidor:', result);
+
         if (result.success) {
             showMessage('Publicación eliminada', 'success');
+            console.log('✅ Publicación eliminada correctamente');
             await loadPublications();
         } else {
             throw new Error(result.message || 'Error al eliminar');
         }
-        
+
     } catch (error) {
+        console.error('❌ Error eliminando:', error);
         showMessage('Error deleting: ' + error.message, 'error');
     }
 }
