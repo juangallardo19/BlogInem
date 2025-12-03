@@ -770,9 +770,11 @@ function enableAdminMode() {
     
     const adminBanner = document.getElementById('adminBanner');
     const cleanBtn = document.getElementById('cleanBtn');
+    const adminBtn = document.getElementById('adminBtn');
     
     if (adminBanner) adminBanner.style.display = 'flex';
     if (cleanBtn) cleanBtn.style.display = 'inline-flex';
+    if (adminBtn) adminBtn.style.display = 'none'; // Ocultar botón Admin
     
     displayPublications();
 }
@@ -782,9 +784,11 @@ function disableAdminMode() {
     
     const adminBanner = document.getElementById('adminBanner');
     const cleanBtn = document.getElementById('cleanBtn');
+    const adminBtn = document.getElementById('adminBtn');
     
     if (adminBanner) adminBanner.style.display = 'none';
     if (cleanBtn) cleanBtn.style.display = 'none';
+    if (adminBtn) adminBtn.style.display = 'inline-flex'; // Mostrar botón Admin de nuevo
     
     localStorage.removeItem('adminMode');
     displayPublications();
