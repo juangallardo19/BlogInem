@@ -2,7 +2,7 @@
 // FRONTEND ARREGLADO PARA MEDIOS
 // ========================================
 
-const API_URL = 'https://script.google.com/macros/s/AKfycbyBnLeB0CNzjnzqBJL0YOgP1qs2qE7qHl8LfIl4Sm8oeztCLCB7xhvbd0yOviz0Nu7G/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbwJ6brd2mdheu5mcue5XRSDRg9VpNQ8_xAQrbgPkeFCPVGJUSm88hCKmfmvVp7ruomb/exec';
 const MAX_AUDIO_SIZE = 10 * 1024 * 1024; // 10MB
 const MAX_VIDEO_SIZE = 30 * 1024 * 1024; // 30MB
 
@@ -792,42 +792,34 @@ function disableAdminMode() {
 }
 
 async function deletePublication(publicationId) {
-    console.log('🗑️ deletePublication llamada con ID:', publicationId);
-    console.log('🔐 isAdminMode:', isAdminMode);
-
-    if (!isAdminMode) {
-        console.warn('❌ No está en modo admin');
-        showMessage('Debes estar en modo admin para eliminar', 'error');
-        return;
-    }
-
-    if (!confirm('¿Eliminar esta publicación? No se puede deshacer.')) {
-        console.log('ℹ️ Usuario canceló la eliminación');
-        return;
-    }
-
+    if (!isAdminMode) return;
+    
+    if (!confirm('Delete this publication? This cannot be undone.')) return;
+    
     try {
-        showMessage('Eliminando...', 'info');
-        console.log('📤 Enviando solicitud de eliminación...');
-
+        showMessage('Deleting...', 'info');
+        
         const password = 'Ldirinem2025';
-        const url = `${API_URL}?action=deletePublication&id=${encodeURIComponent(publicationId)}&password=${encodeURIComponent(password)}`;
-        console.log('🌐 URL:', url);
-
-        const response = await fetch(url);
+        
+        // Usar GET con el nombre correcto: deleteExperiencia
+        const params = new URLSearchParams({
+            action: 'deleteExperiencia',
+            id: publicationId,
+            password: password,
+            t: Date.now()
+        });
+        
+        const response = await fetch(`${API_URL}?${params.toString()}`);
         const result = await response.json();
-        console.log('📥 Respuesta del servidor:', result);
-
+        
         if (result.success) {
-            showMessage('Publicación eliminada', 'success');
-            console.log('✅ Publicación eliminada correctamente');
+            showMessage('Publication deleted', 'success');
             await loadPublications();
         } else {
-            throw new Error(result.message || 'Error al eliminar');
+            throw new Error(result.message || 'Error deleting');
         }
-
+        
     } catch (error) {
-        console.error('❌ Error eliminando:', error);
         showMessage('Error deleting: ' + error.message, 'error');
     }
 }
@@ -1015,7 +1007,6 @@ function renderCommentsList(comments, publicationId) {
         `;
     }).join('');
 }
-
 
 async function cleanOrphanRecords() {
     if (!isAdminMode) return;
