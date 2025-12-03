@@ -396,7 +396,7 @@ function displayPublications() {
 function generatePublicationHTML(pub) {
     const formattedDate = formatDate(pub.timestamp);
     const deleteButton = isAdminMode ? 
-        `<button class="delete-btn" onclick="deletePublication('${pub.id}')" title="Eliminar">
+        `<button class="delete-btn" onclick="console.log('🖱️ Delete button clicked for:', '${pub.id}'); deletePublication('${pub.id}')" title="Delete">
             <svg class="icon-btn-small" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
             </svg>
@@ -792,11 +792,22 @@ function disableAdminMode() {
 }
 
 async function deletePublication(publicationId) {
-    if (!isAdminMode) return;
+    console.log('🗑️ deletePublication called');
+    console.log('📍 Publication ID:', publicationId);
+    console.log('🔐 Admin mode:', isAdminMode);
     
-    if (!confirm('Delete this publication? This cannot be undone.')) return;
+    if (!isAdminMode) {
+        console.log('❌ Not in admin mode, aborting');
+        return;
+    }
+    
+    if (!confirm('Delete this publication? This cannot be undone.')) {
+        console.log('❌ User cancelled deletion');
+        return;
+    }
     
     try {
+        console.log('✅ Starting deletion process...');
         showMessage('Deleting...', 'info');
         
         const password = 'Ldirinem2025';
@@ -809,17 +820,30 @@ async function deletePublication(publicationId) {
             t: Date.now()
         });
         
-        const response = await fetch(`${API_URL}?${params.toString()}`);
+        const url = `${API_URL}?${params.toString()}`;
+        console.log('🌐 Calling URL:', url);
+        
+        const response = await fetch(url);
+        console.log('📥 Response status:', response.status);
+        console.log('📥 Response ok:', response.ok);
+        
         const result = await response.json();
+        console.log('📦 Result:', JSON.stringify(result, null, 2));
         
         if (result.success) {
+            console.log('✅ Deletion successful!');
             showMessage('Publication deleted', 'success');
+            console.log('🔄 Reloading publications...');
             await loadPublications();
+            console.log('✅ Publications reloaded');
         } else {
+            console.log('❌ Deletion failed:', result.message);
             throw new Error(result.message || 'Error deleting');
         }
         
     } catch (error) {
+        console.error('❌ ERROR in deletePublication:', error);
+        console.error('Error stack:', error.stack);
         showMessage('Error deleting: ' + error.message, 'error');
     }
 }
