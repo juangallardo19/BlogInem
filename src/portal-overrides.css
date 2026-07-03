@@ -1,0 +1,332 @@
+.react-container.portal-container {
+    max-width: min(1440px, calc(100vw - 48px));
+    padding-inline: 24px;
+    width: 100%;
+}
+
+.site-logo {
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    height: 72px;
+    padding: 0;
+    width: 72px;
+}
+
+.site-header {
+    gap: 34px;
+}
+
+.main-nav {
+    column-gap: 14px;
+    row-gap: 8px;
+}
+
+.mobile-nav-toggle {
+    display: none;
+}
+
+.nav-link {
+    padding-inline: 14px;
+}
+
+.nav-item {
+    margin-bottom: -14px;
+    padding-bottom: 14px;
+}
+
+.nav-dropdown {
+    top: 100%;
+}
+
+.nav-dropdown::before {
+    content: '';
+    height: 14px;
+    left: 0;
+    position: absolute;
+    right: 0;
+    top: -14px;
+}
+
+.portal-page {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(247, 252, 247, 0.99)),
+        linear-gradient(135deg, rgba(34, 139, 34, 0.1), rgba(255, 215, 0, 0.12));
+    border: 1px solid rgba(34, 139, 34, 0.18);
+    border-radius: 18px;
+    box-shadow: 0 22px 64px rgba(31, 41, 55, 0.18);
+    padding: clamp(28px, 4vw, 56px);
+}
+
+.portal-page h1 {
+    color: #228B22;
+    font-size: clamp(30px, 4vw, 46px);
+    font-weight: 900;
+    letter-spacing: 0;
+    line-height: 1.08;
+    margin-bottom: 28px;
+    max-width: 980px;
+}
+
+.portal-page-tourist-places h1,
+.portal-page-food h1,
+.portal-page-carnival h1,
+.portal-page-crafts h1 {
+    background: linear-gradient(135deg, #228B22 0%, #2E8B57 45%, #d6b300 100%);
+    background-clip: text;
+    color: transparent;
+}
+
+.portal-page-introduction h1,
+.portal-page-evaluation h1 {
+    color: #228B22;
+}
+
+.portal-eyebrow {
+    color: #b69a00;
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+.portal-subsections {
+    gap: 14px;
+    margin: 0 0 34px;
+}
+
+.portal-subsection-link {
+    border-color: rgba(34, 139, 34, 0.26);
+    color: #155e34;
+}
+
+.portal-masonry {
+    column-count: 3;
+    column-gap: 24px;
+}
+
+.portal-masonry-item {
+    border-radius: 8px;
+    margin-bottom: 24px;
+    min-height: 300px;
+}
+
+.portal-masonry-tall {
+    min-height: 460px;
+}
+
+.portal-masonry-wide {
+    min-height: 360px;
+}
+
+.portal-masonry-medium {
+    min-height: 390px;
+}
+
+.portal-masonry-short {
+    min-height: 260px;
+}
+
+@media (max-width: 1180px) {
+    .portal-masonry {
+        column-count: 3;
+    }
+}
+
+@media (max-width: 900px) {
+    .site-logo {
+        height: 58px;
+        width: 58px;
+    }
+
+    .main-nav {
+        column-gap: 8px;
+    }
+
+    .react-container.portal-container {
+        max-width: calc(100vw - 20px);
+        padding-inline: 10px;
+    }
+
+    .portal-masonry {
+        column-count: 2;
+        column-gap: 16px;
+    }
+
+    .portal-masonry-item {
+        margin-bottom: 16px;
+        min-height: 240px;
+    }
+
+    .portal-masonry-tall,
+    .portal-masonry-medium {
+        min-height: 320px;
+    }
+
+    .portal-masonry-wide,
+    .portal-masonry-short {
+        min-height: 220px;
+    }
+}
+
+@media (max-width: 640px) {
+    body {
+        padding: 0;
+    }
+
+    .react-container {
+        max-width: 100%;
+        padding: 14px 10px 32px;
+    }
+
+    .site-header {
+        align-items: center;
+        display: grid;
+        gap: 10px;
+        grid-template-columns: 1fr auto;
+    }
+
+    .site-brand {
+        min-width: 0;
+    }
+
+    .site-brand-copy strong {
+        font-size: 14px;
+    }
+
+    .main-nav {
+        display: none;
+        grid-column: 1 / -1;
+        grid-template-columns: 1fr;
+        overflow: visible;
+        padding: 6px 0 0;
+        width: 100%;
+    }
+
+    .main-nav-open {
+        display: grid;
+    }
+
+    .mobile-nav-toggle {
+        align-items: center;
+        background: linear-gradient(135deg, #228B22, #2E8B57);
+        border: 0;
+        border-radius: 10px;
+        color: #ffffff;
+        cursor: pointer;
+        display: inline-flex;
+        flex-direction: column;
+        gap: 4px;
+        height: 44px;
+        justify-content: center;
+        width: 44px;
+    }
+
+    .mobile-nav-toggle span {
+        background: currentColor;
+        border-radius: 999px;
+        display: block;
+        height: 2px;
+        width: 20px;
+    }
+
+    .nav-item {
+        margin-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    .nav-link {
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .nav-dropdown {
+        box-shadow: none;
+        display: grid;
+        margin: 4px 0 8px;
+        opacity: 1;
+        pointer-events: auto;
+        position: static;
+        transform: none;
+    }
+
+    .nav-dropdown::before {
+        display: none;
+    }
+
+    .forum-section,
+    .upload-section {
+        border-radius: 16px;
+        padding: 18px;
+    }
+
+    .forum-header,
+    .publication-header,
+    .publication-footer,
+    .comment-form-footer {
+        align-items: stretch;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .forum-controls,
+    .publication-actions,
+    .publication-links,
+    .publication-stats {
+        width: 100%;
+    }
+
+    .admin-btn,
+    .submit-btn,
+    .pagination-btn,
+    .comment-submit-btn,
+    .remove-file-btn,
+    .link-btn {
+        justify-content: center;
+        min-height: 48px;
+        width: 100%;
+    }
+
+    input,
+    textarea,
+    .search-input,
+    .comment-name-input,
+    .comment-text-input {
+        font-size: 16px;
+        width: 100%;
+    }
+
+    .file-upload-area {
+        min-height: 154px;
+        padding: 22px 14px;
+    }
+
+    .upload-text {
+        overflow-wrap: anywhere;
+    }
+
+    .media-link,
+    .comments-toggle {
+        align-items: stretch;
+        min-width: 0;
+    }
+
+    .portal-page {
+        padding: 20px;
+    }
+
+    .portal-page h1 {
+        font-size: clamp(28px, 9vw, 36px);
+    }
+
+    .portal-masonry {
+        column-count: 1;
+    }
+
+    .portal-masonry-item,
+    .portal-masonry-tall,
+    .portal-masonry-wide,
+    .portal-masonry-medium,
+    .portal-masonry-short {
+        min-height: 280px;
+    }
+}
