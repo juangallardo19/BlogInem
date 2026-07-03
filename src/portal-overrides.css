@@ -31,6 +31,41 @@
     padding-inline: 14px;
 }
 
+.nav-link:hover,
+.nav-link:focus-visible,
+.nav-item:hover > .nav-link,
+.nav-item:focus-within > .nav-link,
+.nav-link-active {
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.14), rgba(255, 215, 0, 0.2));
+    border-color: transparent;
+    color: #0f5132;
+    outline: none;
+}
+
+.nav-link:hover,
+.nav-link:focus-visible,
+.nav-item:hover > .nav-link,
+.nav-item:focus-within > .nav-link {
+    box-shadow: none;
+}
+
+.nav-link-active {
+    border-color: rgba(34, 105, 66, 0.28);
+    box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.7),
+        inset -1px -1px 0 rgba(34, 105, 66, 0.16),
+        0 3px 0 rgba(34, 105, 66, 0.62);
+    transform: translateY(-1px);
+}
+
+.nav-dropdown-link:hover,
+.nav-dropdown-link:focus-visible,
+.nav-dropdown-link-active {
+    background: linear-gradient(135deg, rgba(34, 139, 34, 0.13), rgba(255, 215, 0, 0.18));
+    color: #0f5132;
+    outline: none;
+}
+
 .nav-item {
     margin-bottom: -14px;
     padding-bottom: 14px;
@@ -60,7 +95,8 @@
 }
 
 .portal-page h1 {
-    color: #228B22;
+    background: none;
+    color: #1f2937;
     font-size: clamp(30px, 4vw, 46px);
     font-weight: 900;
     letter-spacing: 0;
@@ -73,14 +109,13 @@
 .portal-page-food h1,
 .portal-page-carnival h1,
 .portal-page-crafts h1 {
-    background: linear-gradient(135deg, #228B22 0%, #2E8B57 45%, #d6b300 100%);
-    background-clip: text;
-    color: transparent;
+    background: none;
+    color: #1f2937;
 }
 
 .portal-page-introduction h1,
 .portal-page-evaluation h1 {
-    color: #228B22;
+    color: #1f2937;
 }
 
 .portal-eyebrow {
@@ -204,6 +239,10 @@
 
     .main-nav-open {
         display: grid;
+    }
+
+    .main-nav:not(.main-nav-open) .nav-dropdown {
+        display: none;
     }
 
     .mobile-nav-toggle {

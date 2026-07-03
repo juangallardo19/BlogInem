@@ -6,13 +6,14 @@ import { Icon, icons } from '../icons.jsx';
 export function SiteHeader({ currentRoute }) {
   const [menuOpen, setMenuOpen] = useState(false);
 
-  function closeMenu() {
+  function handleNavigate(event) {
     setMenuOpen(false);
+    event.currentTarget.blur();
   }
 
   return (
     <header className="site-header">
-      <a className="site-brand" href={`#/${forumRoute}`} aria-label="Go to blog home" onClick={closeMenu}>
+      <a className="site-brand" href={`#/${forumRoute}`} aria-label="Go to blog home" onClick={handleNavigate}>
         <img src={logoUrl} alt="INEM logo" className="site-logo" width="58" height="58" />
         <div className="site-brand-copy">
           <span className="site-kicker">Student Portal</span>
@@ -34,7 +35,7 @@ export function SiteHeader({ currentRoute }) {
       </button>
 
       <nav className={menuOpen ? 'main-nav main-nav-open' : 'main-nav'} id="mainNavigation" aria-label="Main navigation">
-        <a className={currentRoute === forumRoute ? 'nav-link nav-link-active' : 'nav-link'} href={`#/${forumRoute}`} onClick={closeMenu}>
+        <a className={currentRoute === forumRoute ? 'nav-link nav-link-active' : 'nav-link'} href={`#/${forumRoute}`} onClick={handleNavigate}>
           Blog
         </a>
         {portalSections.map((section) => {
@@ -42,7 +43,7 @@ export function SiteHeader({ currentRoute }) {
 
           return (
             <div className="nav-item" key={section.id}>
-              <a className={sectionActive ? 'nav-link nav-link-active' : 'nav-link'} href={`#/${section.route}`} onClick={closeMenu}>
+              <a className={sectionActive ? 'nav-link nav-link-active' : 'nav-link'} href={`#/${section.route}`} onClick={handleNavigate}>
                 <span>{section.label}</span>
                 <Icon path={icons.chevron} className="nav-chevron" />
               </a>
@@ -52,7 +53,7 @@ export function SiteHeader({ currentRoute }) {
                     className={currentRoute === item.route ? 'nav-dropdown-link nav-dropdown-link-active' : 'nav-dropdown-link'}
                     href={`#/${item.route}`}
                     key={item.id}
-                    onClick={closeMenu}
+                    onClick={handleNavigate}
                   >
                     {item.label}
                   </a>

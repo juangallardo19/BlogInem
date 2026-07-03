@@ -26,7 +26,7 @@ function getVisibleSlots(page) {
 
   const [, contentType] = routeMatch;
   const matchingSlots = gallerySlots.filter((slot) => slot.type === contentType);
-  return [...matchingSlots, ...matchingSlots].slice(0, 4);
+  return Array.from({ length: 9 }, (_, index) => matchingSlots[index % matchingSlots.length]);
 }
 
 export function PortalPage({ route }) {
