@@ -8,6 +8,58 @@ const FOLDER_ID = '1YJI7AJe7_RWHRWiY5yT-ZK8w69iMkDs9';
 // Nombre de la hoja de calculo
 const SPREADSHEET_NAME = 'Student Experiences Database';
 
+// Blogging content storage. Files can be uploaded directly to the pending
+// folder in Drive and then classified from the admin UI/API.
+const BLOGGING_ROOT_FOLDER_NAME = 'Videos Blogging M';
+const BLOGGING_PENDING_FOLDER_NAME = '00 Pending Review';
+const BLOGGING_SPREADSHEET_NAME = 'Blogging Content Database';
+
+const BLOGGING_SECTIONS = [
+  {
+    id: 'introduction',
+    label: 'Introduction & Tests',
+    allowedTypes: ['video']
+  },
+  {
+    id: 'tourist-places',
+    label: 'Tourist Places in Narino',
+    aliases: ['Tourist Places in Nariño', 'Tourist places in Nariño', 'Tourist places in Narino'],
+    allowedTypes: ['photo', 'miniblog', 'roleplay', 'video']
+  },
+  {
+    id: 'food',
+    label: 'Food from Narino',
+    aliases: ['Food from Nariño'],
+    allowedTypes: ['photo', 'miniblog', 'roleplay', 'video']
+  },
+  {
+    id: 'carnival',
+    label: 'Discovering Our Carnival',
+    allowedTypes: ['photo', 'miniblog', 'roleplay', 'video']
+  },
+  {
+    id: 'crafts',
+    label: 'Crafts from My Narino',
+    aliases: ['Crafts from My Nariño', 'Crafts from Nariño', 'Crafts from Narino'],
+    allowedTypes: ['photo', 'miniblog', 'roleplay', 'video']
+  },
+  {
+    id: 'evaluation',
+    label: 'Evaluation',
+    allowedTypes: ['video']
+  }
+];
+
+const BLOGGING_CONTENT_TYPES = {
+  photo: 'Photos',
+  miniblog: 'Mini Blogs',
+  roleplay: 'Roleplays',
+  video: 'Videos'
+};
+
+const BLOGGING_FOLDER_PROPERTY_PREFIX = 'blogging.folder.';
+const BLOGGING_SPREADSHEET_PROPERTY = 'blogging.spreadsheet.id';
+
 // Contraseña de administrador (solo para eliminar - validación backend)
 const ADMIN_PASSWORD = 'Ldirinem2025';
 
@@ -38,6 +90,36 @@ function doGet(e) {
     if (e.parameter && e.parameter.action === 'getExperiencias') {
       Logger.log('🔍 Solicitud de getExperiencias recibida');
       return getExperiencias(e);
+    }
+
+    if (e.parameter && e.parameter.action === 'initializeBloggingFolders') {
+      Logger.log('Blogging folder initialization requested');
+      return initializeBloggingFoldersFromGet(e);
+    }
+
+    if (e.parameter && e.parameter.action === 'scanBloggingUploads') {
+      Logger.log('Blogging upload scan requested');
+      return scanBloggingUploadsFromGet(e);
+    }
+
+    if (e.parameter && e.parameter.action === 'installBloggingDriveScanner') {
+      Logger.log('Blogging drive scanner install requested');
+      return installBloggingDriveScannerFromGet(e);
+    }
+
+    if (e.parameter && e.parameter.action === 'consolidateBloggingFolders') {
+      Logger.log('Blogging duplicate consolidation requested');
+      return consolidateBloggingFoldersFromGet(e);
+    }
+
+    if (e.parameter && e.parameter.action === 'getBloggingContent') {
+      Logger.log('Blogging content requested');
+      return getBloggingContent(e);
+    }
+
+    if (e.parameter && e.parameter.action === 'getBloggingDebug') {
+      Logger.log('Blogging debug requested');
+      return getBloggingDebug(e);
     }
 
     // Verificar si se solicitan comentarios
@@ -182,6 +264,36 @@ function doPost(e) {
       case 'deleteComment':
         Logger.log('🗑️ Eliminando comentario...');
         result = deleteComment(data);
+        break;
+
+      case 'initializeBloggingFolders':
+        Logger.log('Initializing blogging folder structure...');
+        result = initializeBloggingFolders(data);
+        break;
+
+      case 'scanBloggingUploads':
+        Logger.log('Scanning blogging uploads...');
+        result = scanBloggingUploads(data);
+        break;
+
+      case 'consolidateBloggingFolders':
+        Logger.log('Consolidating duplicate blogging folders...');
+        result = consolidateBloggingFolders(data);
+        break;
+
+      case 'uploadBloggingContentBatch':
+        Logger.log('Uploading blogging content batch...');
+        result = uploadBloggingContentBatch(data);
+        break;
+
+      case 'updateBloggingContentBatch':
+        Logger.log('Updating blogging content batch...');
+        result = updateBloggingContentBatch(data);
+        break;
+
+      case 'deleteBloggingContentBatch':
+        Logger.log('Deleting blogging content batch...');
+        result = deleteBloggingContentBatch(data);
         break;
 
       case 'submitExperience':
@@ -716,6 +828,1363 @@ function getOrCreateSpreadsheet(folder) {
 // ========================================
 // GENERAR ID ÚNICO
 // ========================================
+
+// ========================================
+// BLOGGING CONTENT DRIVE STRUCTURE
+// ========================================
+
+function initializeBloggingFolders(data) {
+  if (data && data.password !== ADMIN_PASSWORD) {
+    throw new Error('Unauthorized: Invalid admin credentials');
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    return buildBloggingFolderStructure();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function buildBloggingFolderStructure() {
+  const baseFolder = DriveApp.getFolderById(FOLDER_ID);
+  const bloggingRoot = getOrCreateManagedChildFolder(
+    baseFolder,
+    BLOGGING_ROOT_FOLDER_NAME,
+    'root',
+    ['videos blogging M', 'Videos blogging M']
+  );
+  const pendingFolder = getOrCreateManagedChildFolder(
+    bloggingRoot,
+    BLOGGING_PENDING_FOLDER_NAME,
+    'pending',
+    ['Pending Review', 'Pending Uploads']
+  );
+  const spreadsheet = getOrCreateBloggingSpreadsheet(bloggingRoot);
+  const folders = [];
+
+  BLOGGING_SECTIONS.forEach(function(section) {
+    const sectionFolder = getOrCreateManagedChildFolder(
+      bloggingRoot,
+      section.label,
+      'section.' + section.id,
+      section.aliases || []
+    );
+    section.allowedTypes.forEach(function(contentType) {
+      const typeFolder = getOrCreateManagedChildFolder(
+        sectionFolder,
+        BLOGGING_CONTENT_TYPES[contentType],
+        'section.' + section.id + '.' + contentType,
+        getContentTypeFolderAliases(contentType)
+      );
+      folders.push({
+        section: section.id,
+        sectionLabel: section.label,
+        contentType: contentType,
+        folderName: typeFolder.getName(),
+        folderId: typeFolder.getId(),
+        folderUrl: typeFolder.getUrl()
+      });
+    });
+  });
+
+  return {
+    rootFolderId: bloggingRoot.getId(),
+    rootFolderUrl: bloggingRoot.getUrl(),
+    pendingFolderId: pendingFolder.getId(),
+    pendingFolderUrl: pendingFolder.getUrl(),
+    spreadsheetId: spreadsheet.getId(),
+    spreadsheetUrl: spreadsheet.getUrl(),
+    folders: folders
+  };
+}
+
+function initializeBloggingFoldersFromGet(e) {
+  try {
+    const result = initializeBloggingFolders({
+      password: e.parameter.password
+    });
+
+    return createResponse({
+      success: true,
+      data: result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    Logger.log('ERROR in initializeBloggingFoldersFromGet: ' + error.toString());
+    return createResponse({
+      success: false,
+      message: error.toString(),
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+function scanBloggingUploads(data) {
+  if (!data || data.password !== ADMIN_PASSWORD) {
+    throw new Error('Unauthorized: Invalid admin credentials');
+  }
+
+  const structure = initializeBloggingFolders();
+  const pendingFolder = DriveApp.getFolderById(structure.pendingFolderId);
+  const spreadsheet = getOrCreateBloggingSpreadsheet(DriveApp.getFolderById(structure.rootFolderId));
+  const sheet = spreadsheet.getActiveSheet();
+  const staleDeletedCount = cleanStaleBloggingContentRows(sheet);
+  const existingFileIds = getExistingBloggingFileIds(sheet);
+  const files = pendingFolder.getFiles();
+  const created = [];
+  let skipped = 0;
+
+  while (files.hasNext()) {
+    const file = files.next();
+    const fileId = file.getId();
+
+    if (existingFileIds[fileId]) {
+      skipped++;
+      continue;
+    }
+
+    const mimeType = file.getMimeType();
+    const contentType = inferBloggingContentType(mimeType);
+    const urls = getDriveMediaUrls(fileId);
+    const now = new Date();
+    const id = generateBloggingContentId();
+
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    sheet.appendRow([
+      id,
+      now,
+      fileId,
+      file.getName(),
+      mimeType,
+      safeGetFileSize(file),
+      contentType,
+      '',
+      'pending',
+      stripFileExtension(file.getName()),
+      '',
+      urls.driveUrl,
+      urls.previewUrl,
+      urls.embedUrl,
+      urls.downloadUrl,
+      pendingFolder.getId(),
+      pendingFolder.getUrl(),
+      now
+    ]);
+
+    created.push({
+      id: id,
+      fileId: fileId,
+      fileName: file.getName(),
+      mimeType: mimeType,
+      contentType: contentType,
+      status: 'pending',
+      folderId: pendingFolder.getId(),
+      driveUrl: urls.driveUrl,
+      previewUrl: urls.previewUrl,
+      embedUrl: urls.embedUrl,
+      downloadUrl: urls.downloadUrl,
+      thumbnailUrl: urls.thumbnailUrl
+    });
+  }
+
+  const driveSyncCount = syncBloggingContentFromDrive(structure, sheet, '', '');
+
+  return {
+    created: created,
+    createdCount: created.length,
+    driveSyncCount: driveSyncCount,
+    staleDeletedCount: staleDeletedCount,
+    skippedCount: skipped,
+    pendingFolderUrl: pendingFolder.getUrl()
+  };
+}
+
+function scanBloggingUploadsFromGet(e) {
+  try {
+    const result = scanBloggingUploads({
+      password: e.parameter.password
+    });
+
+    return createResponse({
+      success: true,
+      data: result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    Logger.log('ERROR in scanBloggingUploadsFromGet: ' + error.toString());
+    return createResponse({
+      success: false,
+      message: error.toString(),
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+function scheduledBloggingDriveScan() {
+  const structure = initializeBloggingFolders();
+  const spreadsheet = getOrCreateBloggingSpreadsheet(DriveApp.getFolderById(structure.rootFolderId));
+  const sheet = spreadsheet.getActiveSheet();
+  const staleDeletedCount = cleanStaleBloggingContentRows(sheet);
+  const created = syncBloggingContentFromDrive(structure, sheet, '', '');
+  Logger.log('Scheduled blogging drive scan completed. Created records: ' + created + '. Stale rows deleted: ' + staleDeletedCount);
+  return {
+    created: created,
+    staleDeletedCount: staleDeletedCount
+  };
+}
+
+function installBloggingDriveScanner() {
+  const handler = 'scheduledBloggingDriveScan';
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === handler) {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  ScriptApp.newTrigger(handler)
+    .timeBased()
+    .everyMinutes(15)
+    .create();
+
+  return {
+    installed: true,
+    handler: handler,
+    intervalMinutes: 15
+  };
+}
+
+function installBloggingDriveScannerFromGet(e) {
+  try {
+    if (e.parameter.password !== ADMIN_PASSWORD) {
+      throw new Error('Unauthorized: Invalid admin credentials');
+    }
+
+    const result = installBloggingDriveScanner();
+    return createResponse({
+      success: true,
+      data: result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    Logger.log('ERROR in installBloggingDriveScannerFromGet: ' + error.toString());
+    return createResponse({
+      success: false,
+      message: error.toString(),
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+function uploadBloggingContentBatch(data) {
+  if (!data || data.password !== ADMIN_PASSWORD) {
+    throw new Error('Unauthorized: Invalid admin credentials');
+  }
+
+  if (!data.files || !Array.isArray(data.files) || data.files.length === 0) {
+    throw new Error('At least one file is required');
+  }
+
+  const structure = initializeBloggingFolders();
+  const rootFolder = DriveApp.getFolderById(structure.rootFolderId);
+  const pendingFolder = DriveApp.getFolderById(structure.pendingFolderId);
+  const spreadsheet = getOrCreateBloggingSpreadsheet(rootFolder);
+  const sheet = spreadsheet.getActiveSheet();
+  const uploaded = [];
+
+  data.files.forEach(function(fileData) {
+    if (!fileData || !fileData.data || !fileData.name) {
+      throw new Error('Invalid file payload');
+    }
+
+    const contentType = data.contentType || inferBloggingContentType(fileData.type || fileData.mimeType);
+    const section = data.section || '';
+    let targetFolder = pendingFolder;
+    let status = 'pending';
+
+    validateBloggingContentType(contentType);
+
+    if (section) {
+      validateBloggingSectionAndType(section, contentType);
+      targetFolder = getBloggingTargetFolder(rootFolder, section, contentType);
+      status = data.status || 'published';
+    }
+
+    const blob = Utilities.newBlob(
+      Utilities.base64Decode(fileData.data),
+      fileData.type || fileData.mimeType || MimeType.BINARY,
+      fileData.name
+    );
+    const file = targetFolder.createFile(blob);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+
+    const now = new Date();
+    const id = generateBloggingContentId();
+    const urls = getDriveMediaUrls(file.getId());
+
+    sheet.appendRow([
+      id,
+      now,
+      file.getId(),
+      file.getName(),
+      file.getMimeType(),
+      safeGetFileSize(file),
+      contentType,
+      section,
+      status,
+      stripFileExtension(file.getName()),
+      data.description || '',
+      urls.driveUrl,
+      urls.previewUrl,
+      urls.embedUrl,
+      urls.downloadUrl,
+      targetFolder.getId(),
+      targetFolder.getUrl(),
+      now
+    ]);
+
+    uploaded.push({
+      id: id,
+      fileId: file.getId(),
+      fileName: file.getName(),
+      contentType: contentType,
+      section: section,
+      status: status,
+      driveUrl: urls.driveUrl,
+      previewUrl: urls.previewUrl,
+      embedUrl: urls.embedUrl,
+      downloadUrl: urls.downloadUrl,
+      thumbnailUrl: urls.thumbnailUrl,
+      folderId: targetFolder.getId(),
+      folderUrl: targetFolder.getUrl()
+    });
+  });
+
+  return {
+    uploaded: uploaded,
+    uploadedCount: uploaded.length
+  };
+}
+
+function getBloggingContent(e) {
+  try {
+    const shouldSync = e.parameter.sync === 'true' || e.parameter.sync === '1';
+    const structure = shouldSync ? initializeBloggingFolders() : null;
+    const spreadsheet = getOrCreateBloggingSpreadsheet(structure ? DriveApp.getFolderById(structure.rootFolderId) : null);
+    const sheet = spreadsheet.getActiveSheet();
+    const section = e.parameter.section || '';
+    const contentType = e.parameter.contentType || e.parameter.type || '';
+    const isAdminRequest = e.parameter.password === ADMIN_PASSWORD;
+    const status = e.parameter.status || (isAdminRequest ? '' : 'published');
+    const syncCreatedCount = shouldSync ? syncBloggingContentFromDrive(structure, sheet, section, contentType) : 0;
+    const rows = readBloggingRows(sheet);
+
+    const content = rows.filter(function(item) {
+      if (section && item.section !== section) return false;
+      if (contentType && item.contentType !== contentType) return false;
+      if (status && item.status !== status) return false;
+      return true;
+    });
+
+    content.sort(function(a, b) {
+      return new Date(b.updatedAt || b.timestamp) - new Date(a.updatedAt || a.timestamp);
+    });
+
+    return createResponse({
+      success: true,
+      data: content,
+      count: content.length,
+      syncCreatedCount: syncCreatedCount,
+      sync: shouldSync,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    Logger.log('ERROR in getBloggingContent: ' + error.toString());
+    return createResponse({
+      success: false,
+      message: error.toString(),
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+function syncBloggingContentFromDrive(structure, sheet, sectionId, contentType) {
+  const existingFileIds = getExistingBloggingFileIds(sheet);
+  const rootFolders = getAllBloggingRootFolders(structure);
+  const sectionsToScan = sectionId ? [getBloggingSection(sectionId)] : BLOGGING_SECTIONS;
+  let createdCount = 0;
+
+  Logger.log('Blogging sync roots found: ' + rootFolders.length);
+
+  rootFolders.forEach(function(rootFolder) {
+    sectionsToScan.forEach(function(section) {
+      const sectionFolders = findChildFoldersByNames(rootFolder, getSectionFolderNames(section));
+      Logger.log('Blogging sync section "' + section.id + '" folders found in root "' + rootFolder.getName() + '": ' + sectionFolders.length);
+
+      sectionFolders.forEach(function(sectionFolder) {
+        const typesToScan = contentType ? [contentType] : section.allowedTypes;
+        typesToScan.forEach(function(type) {
+          if (section.allowedTypes.indexOf(type) === -1) return;
+
+          const typeFolders = findChildFoldersByNames(sectionFolder, getContentTypeFolderNames(type));
+          Logger.log('Blogging sync type "' + type + '" folders found in section "' + sectionFolder.getName() + '": ' + typeFolders.length);
+
+          typeFolders.forEach(function(typeFolder) {
+            createdCount += registerFilesFromFolder(sheet, typeFolder, {
+              existingFileIds: existingFileIds,
+              section: section.id,
+              contentType: type,
+              status: 'published'
+            });
+          });
+
+          if (contentType) {
+            createdCount += registerFilesFromFolder(sheet, sectionFolder, {
+              existingFileIds: existingFileIds,
+              section: section.id,
+              contentType: type,
+              status: 'published',
+              onlyMatchingMimeType: true
+            });
+          }
+        });
+      });
+    });
+  });
+
+  Logger.log('Blogging sync created records: ' + createdCount);
+  return createdCount;
+}
+
+function registerFilesFromFolder(sheet, folder, options) {
+  const files = folder.getFiles();
+  let createdCount = 0;
+
+  while (files.hasNext()) {
+    const file = files.next();
+    const fileId = file.getId();
+
+    if (options.existingFileIds[fileId]) continue;
+
+    if (options.onlyMatchingMimeType) {
+      const inferredType = inferBloggingContentType(file.getMimeType());
+      if (inferredType !== options.contentType) continue;
+    }
+
+    appendBloggingFileRecord(sheet, file, {
+      section: options.section,
+      contentType: options.contentType,
+      status: options.status || 'published',
+      folder: folder
+    });
+    options.existingFileIds[fileId] = true;
+    createdCount++;
+  }
+
+  return createdCount;
+}
+
+function appendBloggingFileRecord(sheet, file, options) {
+  const now = new Date();
+  const urls = getDriveMediaUrls(file.getId());
+  const folder = options.folder;
+
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (error) {
+    Logger.log('Could not update file sharing: ' + error.toString());
+  }
+
+  sheet.appendRow([
+    generateBloggingContentId(),
+    now,
+    file.getId(),
+    file.getName(),
+    file.getMimeType(),
+    safeGetFileSize(file),
+    options.contentType,
+    options.section || '',
+    options.status || 'published',
+    stripFileExtension(file.getName()),
+    '',
+    urls.driveUrl,
+    urls.previewUrl,
+    urls.embedUrl,
+    urls.downloadUrl,
+    folder.getId(),
+    folder.getUrl(),
+    now
+  ]);
+}
+
+function getBloggingDebug(e) {
+  try {
+    if (e.parameter.password !== ADMIN_PASSWORD) {
+      throw new Error('Unauthorized: Invalid admin credentials');
+    }
+
+    const structure = initializeBloggingFolders();
+    const rootFolders = getAllBloggingRootFolders(structure);
+    const spreadsheet = getOrCreateBloggingSpreadsheet(DriveApp.getFolderById(structure.rootFolderId));
+    const sheet = spreadsheet.getActiveSheet();
+    const rows = readBloggingRows(sheet);
+    const roots = rootFolders.map(function(rootFolder) {
+      return {
+        id: rootFolder.getId(),
+        name: rootFolder.getName(),
+        url: rootFolder.getUrl(),
+        sections: BLOGGING_SECTIONS.map(function(section) {
+          const sectionFolders = findChildFoldersByNames(rootFolder, getSectionFolderNames(section));
+          return {
+            section: section.id,
+            labels: getSectionFolderNames(section),
+            folders: sectionFolders.map(function(sectionFolder) {
+              return {
+                id: sectionFolder.getId(),
+                name: sectionFolder.getName(),
+                url: sectionFolder.getUrl(),
+                directFileCount: countFolderFiles(sectionFolder),
+                types: section.allowedTypes.map(function(type) {
+                  const typeFolders = findChildFoldersByNames(sectionFolder, getContentTypeFolderNames(type));
+                  return {
+                    type: type,
+                    labels: getContentTypeFolderNames(type),
+                    folders: typeFolders.map(function(typeFolder) {
+                      return {
+                        id: typeFolder.getId(),
+                        name: typeFolder.getName(),
+                        url: typeFolder.getUrl(),
+                        fileCount: countFolderFiles(typeFolder)
+                      };
+                    })
+                  };
+                })
+              };
+            })
+          };
+        })
+      };
+    });
+
+    return createResponse({
+      success: true,
+      data: {
+        deployment: 'blogging-debug-v2',
+        rootFolderId: structure.rootFolderId,
+        spreadsheetId: structure.spreadsheetId,
+        spreadsheetUrl: structure.spreadsheetUrl,
+        sheetLastRow: sheet.getLastRow(),
+        registeredRows: rows.length,
+        roots: roots
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    Logger.log('ERROR in getBloggingDebug: ' + error.toString());
+    return createResponse({
+      success: false,
+      message: error.toString(),
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+function updateBloggingContentBatch(data) {
+  if (!data || data.password !== ADMIN_PASSWORD) {
+    throw new Error('Unauthorized: Invalid admin credentials');
+  }
+
+  if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+    throw new Error('At least one item is required');
+  }
+
+  const structure = initializeBloggingFolders();
+  const rootFolder = DriveApp.getFolderById(structure.rootFolderId);
+  const spreadsheet = getOrCreateBloggingSpreadsheet(rootFolder);
+  const sheet = spreadsheet.getActiveSheet();
+  const values = sheet.getDataRange().getValues();
+  const rowMap = {};
+
+  for (let rowIndex = 1; rowIndex < values.length; rowIndex++) {
+    rowMap[values[rowIndex][0]] = {
+      rowNumber: rowIndex + 1,
+      values: values[rowIndex]
+    };
+  }
+
+  const updated = [];
+
+  data.items.forEach(function(item) {
+    const current = rowMap[item.id];
+    if (!current) {
+      throw new Error('Blogging content item not found: ' + item.id);
+    }
+
+    const row = current.values;
+    const fileId = row[2];
+    const contentType = item.contentType || row[6];
+    const section = item.section || row[7];
+    const status = item.status || (section ? 'published' : row[8] || 'pending');
+    const title = item.title !== undefined ? item.title : row[9];
+    const description = item.description !== undefined ? item.description : row[10];
+    const file = DriveApp.getFileById(fileId);
+    let targetFolderId = row[15];
+    let targetFolderUrl = row[16];
+
+    validateBloggingContentType(contentType);
+
+    if (section) {
+      validateBloggingSectionAndType(section, contentType);
+      const targetFolder = getBloggingTargetFolder(rootFolder, section, contentType);
+      targetFolderId = targetFolder.getId();
+      targetFolderUrl = targetFolder.getUrl();
+
+      if (data.moveFiles !== false) {
+        moveFileToBloggingFolder(file, targetFolder, row[15], structure.pendingFolderId);
+      }
+    }
+
+    const urls = getDriveMediaUrls(fileId);
+    const now = new Date();
+
+    sheet.getRange(current.rowNumber, 7, 1, 12).setValues([[
+      contentType,
+      section,
+      status,
+      title,
+      description,
+      urls.driveUrl,
+      urls.previewUrl,
+      urls.embedUrl,
+      urls.downloadUrl,
+      targetFolderId,
+      targetFolderUrl,
+      now
+    ]]);
+
+    updated.push({
+      id: item.id,
+      fileId: fileId,
+      fileName: row[3],
+      contentType: contentType,
+      section: section,
+      status: status,
+      title: title,
+      description: description,
+      driveUrl: urls.driveUrl,
+      previewUrl: urls.previewUrl,
+      embedUrl: urls.embedUrl,
+      downloadUrl: urls.downloadUrl,
+      thumbnailUrl: urls.thumbnailUrl,
+      folderId: targetFolderId,
+      folderUrl: targetFolderUrl,
+      updatedAt: now
+    });
+  });
+
+  return {
+    updated: updated,
+    updatedCount: updated.length
+  };
+}
+
+function deleteBloggingContentBatch(data) {
+  if (!data || data.password !== ADMIN_PASSWORD) {
+    throw new Error('Unauthorized: Invalid admin credentials');
+  }
+
+  if (!data.ids || !Array.isArray(data.ids) || data.ids.length === 0) {
+    throw new Error('At least one item id is required');
+  }
+
+  const structure = initializeBloggingFolders();
+  const rootFolder = DriveApp.getFolderById(structure.rootFolderId);
+  const spreadsheet = getOrCreateBloggingSpreadsheet(rootFolder);
+  const sheet = spreadsheet.getActiveSheet();
+  const values = sheet.getDataRange().getValues();
+  const idSet = {};
+  const rowsToDelete = [];
+  const deleted = [];
+  const errors = [];
+
+  data.ids.forEach(function(id) {
+    idSet[id] = true;
+  });
+
+  for (let rowIndex = 1; rowIndex < values.length; rowIndex++) {
+    const id = values[rowIndex][0];
+    if (!idSet[id]) continue;
+
+    const fileId = values[rowIndex][2];
+    try {
+      DriveApp.getFileById(fileId).setTrashed(true);
+      deleted.push({
+        id: id,
+        fileId: fileId
+      });
+    } catch (error) {
+      errors.push({
+        id: id,
+        fileId: fileId,
+        message: error.toString()
+      });
+    }
+
+    rowsToDelete.push(rowIndex + 1);
+  }
+
+  rowsToDelete.sort(function(a, b) {
+    return b - a;
+  }).forEach(function(rowNumber) {
+    sheet.deleteRow(rowNumber);
+  });
+
+  return {
+    deleted: deleted,
+    deletedCount: deleted.length,
+    errors: errors
+  };
+}
+
+function getOrCreateBloggingSpreadsheet(folder) {
+  const cachedSpreadsheet = getCachedBloggingSpreadsheet();
+  const candidates = findBloggingSpreadsheetCandidates(folder);
+  if (cachedSpreadsheet) {
+    candidates.push(cachedSpreadsheet);
+  }
+
+  if (candidates.length > 0) {
+    const spreadsheet = chooseBestBloggingSpreadsheet(candidates);
+    ensureBloggingHeaders(spreadsheet.getActiveSheet());
+    setBloggingSpreadsheetId(spreadsheet.getId());
+    return spreadsheet;
+  }
+
+  if (!folder) {
+    const baseFolder = DriveApp.getFolderById(FOLDER_ID);
+    folder = getOrCreateManagedChildFolder(
+      baseFolder,
+      BLOGGING_ROOT_FOLDER_NAME,
+      'root',
+      ['videos blogging M', 'Videos blogging M']
+    );
+  }
+
+  const spreadsheet = SpreadsheetApp.create(BLOGGING_SPREADSHEET_NAME);
+  const sheet = spreadsheet.getActiveSheet();
+  ensureBloggingHeaders(sheet);
+
+  const spreadsheetFile = DriveApp.getFileById(spreadsheet.getId());
+  folder.addFile(spreadsheetFile);
+  DriveApp.getRootFolder().removeFile(spreadsheetFile);
+
+  setBloggingSpreadsheetId(spreadsheet.getId());
+  return spreadsheet;
+}
+
+function getCachedBloggingSpreadsheet() {
+  const spreadsheetId = PropertiesService.getScriptProperties().getProperty(BLOGGING_SPREADSHEET_PROPERTY);
+  if (!spreadsheetId) return null;
+
+  try {
+    return SpreadsheetApp.openById(spreadsheetId);
+  } catch (error) {
+    Logger.log('Cached blogging spreadsheet missing: ' + error.toString());
+    PropertiesService.getScriptProperties().deleteProperty(BLOGGING_SPREADSHEET_PROPERTY);
+    return null;
+  }
+}
+
+function setBloggingSpreadsheetId(spreadsheetId) {
+  PropertiesService.getScriptProperties().setProperty(BLOGGING_SPREADSHEET_PROPERTY, spreadsheetId);
+}
+
+function findBloggingSpreadsheetCandidates(primaryFolder) {
+  const byId = {};
+  const folders = [];
+
+  if (primaryFolder) folders.push(primaryFolder);
+
+  try {
+    const structureRoot = getManagedFolder('root');
+    if (structureRoot) folders.push(structureRoot);
+  } catch (error) {
+    Logger.log('Could not read managed root for spreadsheet candidates: ' + error.toString());
+  }
+
+  try {
+    getAllBloggingRootFolders(null).forEach(function(folder) {
+      folders.push(folder);
+    });
+  } catch (error) {
+    Logger.log('Could not read all root folders for spreadsheet candidates: ' + error.toString());
+  }
+
+  folders.forEach(function(folder) {
+    try {
+      const files = folder.getFilesByName(BLOGGING_SPREADSHEET_NAME);
+      while (files.hasNext()) {
+        const file = files.next();
+        byId[file.getId()] = SpreadsheetApp.openById(file.getId());
+      }
+    } catch (error) {
+      Logger.log('Could not inspect folder for spreadsheet candidates: ' + error.toString());
+    }
+  });
+
+  return Object.keys(byId).map(function(id) {
+    return byId[id];
+  });
+}
+
+function chooseBestBloggingSpreadsheet(spreadsheets) {
+  spreadsheets.sort(function(a, b) {
+    const rowDiff = b.getActiveSheet().getLastRow() - a.getActiveSheet().getLastRow();
+    if (rowDiff !== 0) return rowDiff;
+    return a.getName().localeCompare(b.getName());
+  });
+
+  return spreadsheets[0];
+}
+
+function ensureBloggingHeaders(sheet) {
+  const headers = [
+    'ID',
+    'Timestamp',
+    'File ID',
+    'File Name',
+    'Mime Type',
+    'Size Bytes',
+    'Content Type',
+    'Section',
+    'Status',
+    'Title',
+    'Description',
+    'Drive URL',
+    'Preview URL',
+    'Embed URL',
+    'Download URL',
+    'Folder ID',
+    'Folder URL',
+    'Updated At'
+  ];
+
+  if (sheet.getLastRow() === 0) {
+    sheet.appendRow(headers);
+  }
+
+  const width = Math.max(sheet.getLastColumn(), headers.length);
+  const currentHeaders = sheet.getRange(1, 1, 1, width).getValues()[0];
+
+  headers.forEach(function(header, index) {
+    if (currentHeaders[index] !== header) {
+      sheet.getRange(1, index + 1).setValue(header);
+    }
+  });
+
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange.setFontWeight('bold');
+  headerRange.setBackground('#14532d');
+  headerRange.setFontColor('#ffffff');
+  sheet.setFrozenRows(1);
+}
+
+function readBloggingRows(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return [];
+
+  const values = sheet.getRange(2, 1, lastRow - 1, 18).getValues();
+
+  return values
+    .map(function(row) {
+      return {
+        id: row[0],
+        timestamp: row[1],
+        fileId: row[2],
+        fileName: row[3],
+        mimeType: row[4],
+        sizeBytes: row[5],
+        contentType: row[6],
+        section: row[7],
+        status: row[8],
+        title: row[9],
+        description: row[10],
+        driveUrl: row[11],
+        previewUrl: row[12],
+        embedUrl: row[13],
+        downloadUrl: row[14],
+        thumbnailUrl: getDriveThumbnailUrl(row[2]),
+        folderId: row[15],
+        folderUrl: row[16],
+        updatedAt: row[17]
+      };
+    })
+    .filter(function(item) {
+      return item.id && item.fileId;
+    });
+}
+
+function cleanStaleBloggingContentRows(sheet) {
+  const lastRow = sheet.getLastRow();
+  if (lastRow <= 1) return 0;
+
+  const values = sheet.getRange(2, 1, lastRow - 1, 18).getValues();
+  const rowsToDelete = [];
+
+  values.forEach(function(row, index) {
+    const fileId = row[2];
+    if (!fileId) {
+      rowsToDelete.push(index + 2);
+      return;
+    }
+
+    try {
+      const file = DriveApp.getFileById(fileId);
+      if (file.isTrashed()) {
+        rowsToDelete.push(index + 2);
+      }
+    } catch (error) {
+      rowsToDelete.push(index + 2);
+    }
+  });
+
+  rowsToDelete.sort(function(a, b) {
+    return b - a;
+  }).forEach(function(rowNumber) {
+    sheet.deleteRow(rowNumber);
+  });
+
+  return rowsToDelete.length;
+}
+
+function getExistingBloggingFileIds(sheet) {
+  const rows = readBloggingRows(sheet);
+  const existing = {};
+  rows.forEach(function(row) {
+    existing[row.fileId] = true;
+  });
+  return existing;
+}
+
+function consolidateBloggingFolders(data) {
+  if (!data || data.password !== ADMIN_PASSWORD) {
+    throw new Error('Unauthorized: Invalid admin credentials');
+  }
+
+  const lock = LockService.getScriptLock();
+  lock.waitLock(30000);
+
+  try {
+    const baseFolder = DriveApp.getFolderById(FOLDER_ID);
+    const rootFolders = findChildFoldersByNames(baseFolder, [
+      BLOGGING_ROOT_FOLDER_NAME,
+      'videos blogging M',
+      'Videos blogging M'
+    ]);
+    const rootFolder = chooseCanonicalFolder(rootFolders);
+    const summary = {
+      rootDuplicatesFound: Math.max(0, rootFolders.length - 1),
+      sectionDuplicatesMerged: 0,
+      typeDuplicatesMerged: 0,
+      filesMoved: 0,
+      foldersTrashed: 0
+    };
+
+    if (!rootFolder) {
+      const initialized = buildBloggingFolderStructure();
+      return {
+        ...summary,
+        message: 'No blogging folder existed. A new structure was created.',
+        rootFolderUrl: initialized.rootFolderUrl
+      };
+    }
+
+    setManagedFolderId('root', rootFolder.getId());
+
+    rootFolders.forEach(function(folder) {
+      if (folder.getId() !== rootFolder.getId()) {
+        const result = mergeFolderContents(folder, rootFolder);
+        summary.filesMoved += result.filesMoved;
+        summary.foldersTrashed += result.foldersTrashed + trashFolder(folder);
+      }
+    });
+
+    const pendingResult = consolidateNamedFolders(rootFolder, BLOGGING_PENDING_FOLDER_NAME, ['Pending Review', 'Pending Uploads']);
+    summary.filesMoved += pendingResult.filesMoved;
+    summary.foldersTrashed += pendingResult.foldersTrashed;
+    setManagedFolderId('pending', pendingResult.folder.getId());
+
+    BLOGGING_SECTIONS.forEach(function(section) {
+      const sectionNames = [section.label].concat(section.aliases || []);
+      const sectionResult = consolidateNamedFolders(rootFolder, section.label, sectionNames.slice(1));
+      summary.sectionDuplicatesMerged += sectionResult.duplicatesMerged;
+      summary.filesMoved += sectionResult.filesMoved;
+      summary.foldersTrashed += sectionResult.foldersTrashed;
+      setManagedFolderId('section.' + section.id, sectionResult.folder.getId());
+
+      section.allowedTypes.forEach(function(contentType) {
+        const typeResult = consolidateNamedFolders(
+          sectionResult.folder,
+          BLOGGING_CONTENT_TYPES[contentType],
+          getContentTypeFolderAliases(contentType)
+        );
+        summary.typeDuplicatesMerged += typeResult.duplicatesMerged;
+        summary.filesMoved += typeResult.filesMoved;
+        summary.foldersTrashed += typeResult.foldersTrashed;
+        setManagedFolderId('section.' + section.id + '.' + contentType, typeResult.folder.getId());
+      });
+    });
+
+    const structure = buildBloggingFolderStructure();
+    return {
+      ...summary,
+      rootFolderUrl: structure.rootFolderUrl,
+      pendingFolderUrl: structure.pendingFolderUrl
+    };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function consolidateBloggingFoldersFromGet(e) {
+  try {
+    const result = consolidateBloggingFolders({
+      password: e.parameter.password
+    });
+
+    return createResponse({
+      success: true,
+      data: result,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    Logger.log('ERROR in consolidateBloggingFoldersFromGet: ' + error.toString());
+    return createResponse({
+      success: false,
+      message: error.toString(),
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+function consolidateNamedFolders(parentFolder, canonicalName, aliases) {
+  const folders = findChildFoldersByNames(parentFolder, [canonicalName].concat(aliases || []));
+  let canonicalFolder = chooseCanonicalFolder(folders);
+  const summary = {
+    folder: canonicalFolder,
+    duplicatesMerged: 0,
+    filesMoved: 0,
+    foldersTrashed: 0
+  };
+
+  if (!canonicalFolder) {
+    canonicalFolder = parentFolder.createFolder(canonicalName);
+    summary.folder = canonicalFolder;
+    return summary;
+  }
+
+  folders.forEach(function(folder) {
+    if (folder.getId() === canonicalFolder.getId()) return;
+    const result = mergeFolderContents(folder, canonicalFolder);
+    summary.duplicatesMerged++;
+    summary.filesMoved += result.filesMoved;
+    summary.foldersTrashed += result.foldersTrashed + trashFolder(folder);
+  });
+
+  return summary;
+}
+
+function mergeFolderContents(sourceFolder, targetFolder) {
+  const summary = {
+    filesMoved: 0,
+    foldersTrashed: 0
+  };
+  const files = sourceFolder.getFiles();
+
+  while (files.hasNext()) {
+    const file = files.next();
+    targetFolder.addFile(file);
+    try {
+      sourceFolder.removeFile(file);
+    } catch (error) {
+      Logger.log('Could not remove moved file from source: ' + error.toString());
+    }
+    summary.filesMoved++;
+  }
+
+  const childFolders = sourceFolder.getFolders();
+  while (childFolders.hasNext()) {
+    const childFolder = childFolders.next();
+    const targetChild = getOrCreateChildFolder(targetFolder, childFolder.getName());
+    const result = mergeFolderContents(childFolder, targetChild);
+    summary.filesMoved += result.filesMoved;
+    summary.foldersTrashed += result.foldersTrashed + trashFolder(childFolder);
+  }
+
+  return summary;
+}
+
+function trashFolder(folder) {
+  try {
+    folder.setTrashed(true);
+    return 1;
+  } catch (error) {
+    Logger.log('Could not trash folder ' + folder.getName() + ': ' + error.toString());
+    return 0;
+  }
+}
+
+function getOrCreateManagedChildFolder(parentFolder, folderName, propertyKey, aliases) {
+  const cachedFolder = getManagedFolder(propertyKey, parentFolder);
+  if (cachedFolder) {
+    return cachedFolder;
+  }
+
+  const folders = findChildFoldersByNames(parentFolder, [folderName].concat(aliases || []));
+  const folder = chooseCanonicalFolder(folders) || parentFolder.createFolder(folderName);
+  setManagedFolderId(propertyKey, folder.getId());
+  return folder;
+}
+
+function getManagedFolder(propertyKey, expectedParentFolder) {
+  const folderId = PropertiesService.getScriptProperties().getProperty(BLOGGING_FOLDER_PROPERTY_PREFIX + propertyKey);
+  if (!folderId) return null;
+
+  try {
+    const folder = DriveApp.getFolderById(folderId);
+    if (!folder.isTrashed() && (!expectedParentFolder || folderHasParent(folder, expectedParentFolder))) return folder;
+  } catch (error) {
+    Logger.log('Cached folder missing for ' + propertyKey + ': ' + error.toString());
+  }
+
+  PropertiesService.getScriptProperties().deleteProperty(BLOGGING_FOLDER_PROPERTY_PREFIX + propertyKey);
+  return null;
+}
+
+function folderHasParent(folder, expectedParentFolder) {
+  const parents = folder.getParents();
+  while (parents.hasNext()) {
+    if (parents.next().getId() === expectedParentFolder.getId()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function setManagedFolderId(propertyKey, folderId) {
+  PropertiesService.getScriptProperties().setProperty(BLOGGING_FOLDER_PROPERTY_PREFIX + propertyKey, folderId);
+}
+
+function findChildFoldersByNames(parentFolder, folderNames) {
+  const normalizedTargets = {};
+  folderNames.forEach(function(name) {
+    normalizedTargets[normalizeFolderName(name)] = true;
+  });
+
+  const folders = parentFolder.getFolders();
+  const matches = [];
+
+  while (folders.hasNext()) {
+    const folder = folders.next();
+    if (!folder.isTrashed() && normalizedTargets[normalizeFolderName(folder.getName())]) {
+      matches.push(folder);
+    }
+  }
+
+  return matches;
+}
+
+function getAllBloggingRootFolders(structure) {
+  const baseFolder = DriveApp.getFolderById(FOLDER_ID);
+  const rootFolders = findChildFoldersByNames(baseFolder, [
+    BLOGGING_ROOT_FOLDER_NAME,
+    'videos blogging M',
+    'Videos blogging M'
+  ]);
+  const byId = {};
+
+  if (structure && structure.rootFolderId) {
+    try {
+      const folder = DriveApp.getFolderById(structure.rootFolderId);
+      if (!folder.isTrashed()) {
+        byId[folder.getId()] = folder;
+      }
+    } catch (error) {
+      Logger.log('Could not read structure root folder: ' + error.toString());
+    }
+  }
+
+  rootFolders.forEach(function(folder) {
+    byId[folder.getId()] = folder;
+  });
+
+  return Object.keys(byId).map(function(id) {
+    return byId[id];
+  });
+}
+
+function getSectionFolderNames(section) {
+  return [section.label].concat(section.aliases || []);
+}
+
+function getContentTypeFolderNames(contentType) {
+  return [BLOGGING_CONTENT_TYPES[contentType]].concat(getContentTypeFolderAliases(contentType));
+}
+
+function countFolderFiles(folder) {
+  const files = folder.getFiles();
+  let count = 0;
+  while (files.hasNext()) {
+    files.next();
+    count++;
+  }
+  return count;
+}
+
+function chooseCanonicalFolder(folders) {
+  if (!folders || folders.length === 0) return null;
+
+  folders.sort(function(a, b) {
+    try {
+      return a.getDateCreated() - b.getDateCreated();
+    } catch (error) {
+      return a.getName().localeCompare(b.getName());
+    }
+  });
+
+  return folders[0];
+}
+
+function normalizeFolderName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/&/g, 'and')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function getContentTypeFolderAliases(contentType) {
+  const aliases = {
+    photo: ['Photo', 'photos'],
+    miniblog: ['Mini Blog', 'Mini Blog', 'Mini Vlogs', 'Mini Vlog', 'mini vlogs', 'mini blogs'],
+    roleplay: ['Role Plays', 'Role Play', 'role plays', 'roleplays'],
+    video: ['Video', 'videos']
+  };
+  return aliases[contentType] || [];
+}
+
+function getOrCreateChildFolder(parentFolder, folderName) {
+  const folders = parentFolder.getFoldersByName(folderName);
+  if (folders.hasNext()) {
+    return folders.next();
+  }
+  return parentFolder.createFolder(folderName);
+}
+
+function getBloggingTargetFolder(rootFolder, sectionId, contentType) {
+  const section = getBloggingSection(sectionId);
+  const sectionFolder = getOrCreateManagedChildFolder(
+    rootFolder,
+    section.label,
+    'section.' + section.id,
+    section.aliases || []
+  );
+  return getOrCreateManagedChildFolder(
+    sectionFolder,
+    BLOGGING_CONTENT_TYPES[contentType],
+    'section.' + section.id + '.' + contentType,
+    getContentTypeFolderAliases(contentType)
+  );
+}
+
+function getBloggingSection(sectionId) {
+  for (let i = 0; i < BLOGGING_SECTIONS.length; i++) {
+    if (BLOGGING_SECTIONS[i].id === sectionId) {
+      return BLOGGING_SECTIONS[i];
+    }
+  }
+  throw new Error('Invalid blogging section: ' + sectionId);
+}
+
+function validateBloggingContentType(contentType) {
+  if (!BLOGGING_CONTENT_TYPES[contentType]) {
+    throw new Error('Invalid content type: ' + contentType);
+  }
+}
+
+function validateBloggingSectionAndType(sectionId, contentType) {
+  const section = getBloggingSection(sectionId);
+  if (section.allowedTypes.indexOf(contentType) === -1) {
+    throw new Error('Content type "' + contentType + '" is not allowed in section "' + sectionId + '"');
+  }
+}
+
+function inferBloggingContentType(mimeType) {
+  if (!mimeType) return 'video';
+  if (mimeType.indexOf('image/') === 0) return 'photo';
+  if (mimeType.indexOf('video/') === 0) return 'video';
+  if (mimeType === MimeType.GOOGLE_DOCS || mimeType.indexOf('text/') === 0 || mimeType.indexOf('application/pdf') === 0) {
+    return 'miniblog';
+  }
+  return 'video';
+}
+
+function moveFileToBloggingFolder(file, targetFolder, currentFolderId, pendingFolderId) {
+  targetFolder.addFile(file);
+
+  const foldersToRemove = {};
+  if (currentFolderId && currentFolderId !== targetFolder.getId()) {
+    foldersToRemove[currentFolderId] = true;
+  }
+  if (pendingFolderId && pendingFolderId !== targetFolder.getId()) {
+    foldersToRemove[pendingFolderId] = true;
+  }
+
+  Object.keys(foldersToRemove).forEach(function(folderId) {
+    try {
+      DriveApp.getFolderById(folderId).removeFile(file);
+    } catch (error) {
+      Logger.log('Could not remove file from folder ' + folderId + ': ' + error.toString());
+    }
+  });
+}
+
+function getDriveMediaUrls(fileId) {
+  return {
+    driveUrl: 'https://drive.google.com/file/d/' + fileId + '/view',
+    previewUrl: 'https://drive.google.com/file/d/' + fileId + '/preview',
+    embedUrl: 'https://drive.google.com/file/d/' + fileId + '/preview',
+    downloadUrl: 'https://drive.google.com/uc?export=download&id=' + fileId,
+    thumbnailUrl: getDriveThumbnailUrl(fileId)
+  };
+}
+
+function getDriveThumbnailUrl(fileId) {
+  return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1000';
+}
+
+function safeGetFileSize(file) {
+  try {
+    return file.getSize();
+  } catch (error) {
+    return '';
+  }
+}
+
+function stripFileExtension(fileName) {
+  return fileName.replace(/\.[^/.]+$/, '');
+}
+
+function generateBloggingContentId() {
+  const timestamp = new Date().getTime();
+  const random = Math.floor(Math.random() * 10000);
+  return 'BLOG-' + timestamp + '-' + random;
+}
 
 function generateUniqueId() {
   const timestamp = new Date().getTime();

@@ -148,7 +148,7 @@ function App() {
             <UploadSection onSubmitted={handleSubmitted} showMessage={showMessage} status={status} />
           </>
         ) : (
-          <PortalPage route={currentRoute} />
+          <PortalPage route={currentRoute} isAdminMode={isAdminMode} showMessage={showMessage} />
         )}
       </main>
       <AdminModal
