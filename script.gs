@@ -13,6 +13,7 @@ const SPREADSHEET_NAME = 'Student Experiences Database';
 const BLOGGING_ROOT_FOLDER_NAME = 'Videos Blogging M';
 const BLOGGING_PENDING_FOLDER_NAME = '00 Pending Review';
 const BLOGGING_SPREADSHEET_NAME = 'Blogging Content Database';
+const BLOGGING_SPREADSHEET_ID = '1hOcffrl_GUo27K7QLL0Rm7ozVPmRuiT5gZtjFFwXtwU';
 
 const BLOGGING_SECTIONS = [
   {
@@ -59,6 +60,8 @@ const BLOGGING_CONTENT_TYPES = {
 
 const BLOGGING_FOLDER_PROPERTY_PREFIX = 'blogging.folder.';
 const BLOGGING_SPREADSHEET_PROPERTY = 'blogging.spreadsheet.id';
+const BLOGGING_CONTENT_CACHE_VERSION_PROPERTY = 'blogging.content.cache.version';
+const BLOGGING_CONTENT_CACHE_TTL_SECONDS = 300;
 
 // Contraseña de administrador (solo para eliminar - validación backend)
 const ADMIN_PASSWORD = 'Ldirinem2025';
@@ -992,6 +995,7 @@ function scanBloggingUploads(data) {
   }
 
   const driveSyncCount = syncBloggingContentFromDrive(structure, sheet, '', '');
+  invalidateBloggingContentCache();
 
   return {
     created: created,
@@ -1030,6 +1034,9 @@ function scheduledBloggingDriveScan() {
   const sheet = spreadsheet.getActiveSheet();
   const staleDeletedCount = cleanStaleBloggingContentRows(sheet);
   const created = syncBloggingContentFromDrive(structure, sheet, '', '');
+  if (created > 0 || staleDeletedCount > 0) {
+    invalidateBloggingContentCache();
+  }
   Logger.log('Scheduled blogging drive scan completed. Created records: ' + created + '. Stale rows deleted: ' + staleDeletedCount);
   return {
     created: created,
@@ -1162,6 +1169,7 @@ function uploadBloggingContentBatch(data) {
       folderUrl: targetFolder.getUrl()
     });
   });
+  invalidateBloggingContentCache();
 
   return {
     uploaded: uploaded,
@@ -1172,13 +1180,25 @@ function uploadBloggingContentBatch(data) {
 function getBloggingContent(e) {
   try {
     const shouldSync = e.parameter.sync === 'true' || e.parameter.sync === '1';
-    const structure = shouldSync ? initializeBloggingFolders() : null;
-    const spreadsheet = getOrCreateBloggingSpreadsheet(structure ? DriveApp.getFolderById(structure.rootFolderId) : null);
-    const sheet = spreadsheet.getActiveSheet();
     const section = e.parameter.section || '';
     const contentType = e.parameter.contentType || e.parameter.type || '';
     const isAdminRequest = e.parameter.password === ADMIN_PASSWORD;
     const status = e.parameter.status || (isAdminRequest ? '' : 'published');
+    const canUseCache = !shouldSync && !isAdminRequest;
+    const cacheKey = canUseCache ? getBloggingContentCacheKey(section, contentType, status) : '';
+    const cachedPayload = canUseCache ? getCachedBloggingContentPayload(cacheKey) : null;
+
+    if (cachedPayload) {
+      cachedPayload.fromCache = true;
+      cachedPayload.timestamp = new Date().toISOString();
+      return createResponse(cachedPayload);
+    }
+
+    const structure = shouldSync ? initializeBloggingFolders() : null;
+    const spreadsheet = shouldSync
+      ? getOrCreateBloggingSpreadsheet(DriveApp.getFolderById(structure.rootFolderId))
+      : getBloggingSpreadsheetForRead();
+    const sheet = spreadsheet.getActiveSheet();
     const syncCreatedCount = shouldSync ? syncBloggingContentFromDrive(structure, sheet, section, contentType) : 0;
     const rows = readBloggingRows(sheet);
 
@@ -1193,14 +1213,20 @@ function getBloggingContent(e) {
       return new Date(b.updatedAt || b.timestamp) - new Date(a.updatedAt || a.timestamp);
     });
 
-    return createResponse({
+    const payload = {
       success: true,
       data: content,
       count: content.length,
       syncCreatedCount: syncCreatedCount,
       sync: shouldSync,
       timestamp: new Date().toISOString()
-    });
+    };
+
+    if (canUseCache) {
+      setCachedBloggingContentPayload(cacheKey, payload);
+    }
+
+    return createResponse(payload);
   } catch (error) {
     Logger.log('ERROR in getBloggingContent: ' + error.toString());
     return createResponse({
@@ -1485,6 +1511,8 @@ function updateBloggingContentBatch(data) {
     });
   });
 
+  invalidateBloggingContentCache();
+
   return {
     updated: updated,
     updatedCount: updated.length
@@ -1542,6 +1570,8 @@ function deleteBloggingContentBatch(data) {
     sheet.deleteRow(rowNumber);
   });
 
+  invalidateBloggingContentCache();
+
   return {
     deleted: deleted,
     deletedCount: deleted.length,
@@ -1550,6 +1580,13 @@ function deleteBloggingContentBatch(data) {
 }
 
 function getOrCreateBloggingSpreadsheet(folder) {
+  if (BLOGGING_SPREADSHEET_ID) {
+    const spreadsheet = SpreadsheetApp.openById(BLOGGING_SPREADSHEET_ID);
+    ensureBloggingHeaders(spreadsheet.getActiveSheet());
+    setBloggingSpreadsheetId(spreadsheet.getId());
+    return spreadsheet;
+  }
+
   const cachedSpreadsheet = getCachedBloggingSpreadsheet();
   const candidates = findBloggingSpreadsheetCandidates(folder);
   if (cachedSpreadsheet) {
@@ -1586,6 +1623,14 @@ function getOrCreateBloggingSpreadsheet(folder) {
 }
 
 function getCachedBloggingSpreadsheet() {
+  if (BLOGGING_SPREADSHEET_ID) {
+    try {
+      return SpreadsheetApp.openById(BLOGGING_SPREADSHEET_ID);
+    } catch (error) {
+      Logger.log('Configured blogging spreadsheet missing: ' + error.toString());
+    }
+  }
+
   const spreadsheetId = PropertiesService.getScriptProperties().getProperty(BLOGGING_SPREADSHEET_PROPERTY);
   if (!spreadsheetId) return null;
 
@@ -1596,6 +1641,51 @@ function getCachedBloggingSpreadsheet() {
     PropertiesService.getScriptProperties().deleteProperty(BLOGGING_SPREADSHEET_PROPERTY);
     return null;
   }
+}
+
+function getBloggingSpreadsheetForRead() {
+  const spreadsheet = getCachedBloggingSpreadsheet();
+  if (spreadsheet) return spreadsheet;
+  return getOrCreateBloggingSpreadsheet(null);
+}
+
+function getBloggingContentCacheKey(section, contentType, status) {
+  return [
+    'bloggingContent',
+    getBloggingContentCacheVersion(),
+    section || 'all',
+    contentType || 'all',
+    status || 'all'
+  ].join(':').replace(/[^a-zA-Z0-9:_-]/g, '_');
+}
+
+function getBloggingContentCacheVersion() {
+  return PropertiesService.getScriptProperties().getProperty(BLOGGING_CONTENT_CACHE_VERSION_PROPERTY) || '1';
+}
+
+function getCachedBloggingContentPayload(cacheKey) {
+  try {
+    const cached = CacheService.getScriptCache().get(cacheKey);
+    return cached ? JSON.parse(cached) : null;
+  } catch (error) {
+    Logger.log('Could not read blogging content cache: ' + error.toString());
+    return null;
+  }
+}
+
+function setCachedBloggingContentPayload(cacheKey, payload) {
+  try {
+    CacheService.getScriptCache().put(cacheKey, JSON.stringify(payload), BLOGGING_CONTENT_CACHE_TTL_SECONDS);
+  } catch (error) {
+    Logger.log('Could not write blogging content cache: ' + error.toString());
+  }
+}
+
+function invalidateBloggingContentCache() {
+  PropertiesService.getScriptProperties().setProperty(
+    BLOGGING_CONTENT_CACHE_VERSION_PROPERTY,
+    String(new Date().getTime())
+  );
 }
 
 function setBloggingSpreadsheetId(spreadsheetId) {
@@ -2165,7 +2255,7 @@ function getDriveMediaUrls(fileId) {
 }
 
 function getDriveThumbnailUrl(fileId) {
-  return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1000';
+  return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w640';
 }
 
 function safeGetFileSize(file) {

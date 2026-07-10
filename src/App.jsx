@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { SiteHeader } from './components/SiteHeader.jsx';
 import { forumRoute } from './data/portalSections.js';
 import { useHashRoute } from './hooks/useHashRoute.js';
-import { PortalPage } from './pages/PortalPage.jsx';
+import { PortalPage, prefetchPortalContent } from './pages/PortalPage.jsx';
 import {
   cleanOrphanRecords,
   deleteComment,
@@ -42,6 +42,7 @@ function App() {
     try {
       const data = await getExperiences();
       setPublications(data);
+      prefetchPortalContent();
     } catch (error) {
       showMessage(`Error loading: ${error.message}`, 'error');
       setPublications([]);

@@ -1,5 +1,5 @@
 export const API_URL =
-  'https://script.google.com/macros/s/AKfycbzv7tkWcUvmpP8eyPXZK4Rr_2KBqyXgyODMhvAZGkBNhAn7aOmYdAMqOCqAvshwkd2E/exec';
+  'https://script.google.com/macros/s/AKfycbyu5wId4izLYfaF3WC-EJ4uUkerxytAr33DTewUO1l-v-shTQeYeiI59TE8FHZB21yR/exec';
 
 export const ADMIN_PASSWORD = 'Ldirinem2025';
 const DEBUG_API = true;
