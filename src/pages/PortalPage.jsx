@@ -11,6 +11,12 @@ import { Icon, icons } from '../icons.jsx';
 import { fileToBase64, formatFileSize, MAX_VIDEO_SIZE } from '../utils.js';
 
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
+const PREFETCH_DELAY = 500;
+const PORTAL_STORAGE_PREFIX = 'portalContent:v2:';
+const portalContentCache = new Map();
+const portalContentRequests = new Map();
+let portalPrefetchStarted = false;
+
 const contentTypeLabels = {
   photo: 'Photos',
   miniblog: 'Mini Blogs',
@@ -56,6 +62,186 @@ function getFolderForPage(structure, sectionId, contentType) {
   });
 }
 
+function getPortalContentCacheKey({ sectionId, contentType, admin }) {
+  return [sectionId || 'all', contentType || 'all', admin ? 'admin' : 'public'].join(':');
+}
+
+function getCachedPortalContent({ sectionId, contentType, admin }) {
+  const directItems = portalContentCache.get(getPortalContentCacheKey({ sectionId, contentType, admin }));
+  if (directItems) return directItems;
+
+  if (admin) return null;
+
+  const allItems = portalContentCache.get(getPortalContentCacheKey({ sectionId: '', contentType: '', admin: false }));
+  if (allItems) return filterPortalContent(allItems, { sectionId, contentType });
+
+  const storedDirectItems = getStoredPortalContent({ sectionId, contentType, admin });
+  if (storedDirectItems) return storedDirectItems;
+
+  const storedAllItems = getStoredPortalContent({ sectionId: '', contentType: '', admin: false });
+  if (storedAllItems) return filterPortalContent(storedAllItems, { sectionId, contentType });
+
+  const sectionItems = sectionId
+    ? portalContentCache.get(getPortalContentCacheKey({ sectionId, contentType: '', admin: false }))
+    : null;
+  if (sectionItems) return filterPortalContent(sectionItems, { sectionId, contentType });
+
+  const storedSectionItems = sectionId
+    ? getStoredPortalContent({ sectionId, contentType: '', admin: false })
+    : null;
+  if (storedSectionItems) return filterPortalContent(storedSectionItems, { sectionId, contentType });
+
+  return null;
+}
+
+async function loadPortalContent({ sectionId, contentType, admin }) {
+  const cacheKey = getPortalContentCacheKey({ sectionId, contentType, admin });
+  const cachedItems = getCachedPortalContent({ sectionId, contentType, admin });
+  if (cachedItems) return cachedItems;
+
+  const pendingRequest = portalContentRequests.get(cacheKey);
+  if (pendingRequest) return pendingRequest;
+
+  if (!admin && (sectionId || contentType)) {
+    const allCacheKey = getPortalContentCacheKey({ sectionId: '', contentType: '', admin: false });
+    const pendingAllRequest = portalContentRequests.get(allCacheKey);
+    if (pendingAllRequest) {
+      const allItems = await pendingAllRequest;
+      const filteredItems = filterPortalContent(allItems, { sectionId, contentType });
+      portalContentCache.set(cacheKey, filteredItems);
+      return filteredItems;
+    }
+
+    const allItems = await loadPortalContent({ sectionId: '', contentType: '', admin: false });
+    const filteredItems = filterPortalContent(allItems, { sectionId, contentType });
+    portalContentCache.set(cacheKey, filteredItems);
+    return filteredItems;
+  }
+
+  const request = getBloggingContent({
+    section: sectionId,
+    contentType,
+    admin,
+    sync: false
+  }).then((items) => {
+    cachePortalContent({ sectionId, contentType, admin }, items);
+    portalContentRequests.delete(cacheKey);
+    warmFirstThumbnails(items);
+    return items;
+  }).catch((error) => {
+    portalContentRequests.delete(cacheKey);
+    throw error;
+  });
+
+  portalContentRequests.set(cacheKey, request);
+  return request;
+}
+
+function cachePortalContent({ sectionId, contentType, admin }, items) {
+  portalContentCache.set(getPortalContentCacheKey({ sectionId, contentType, admin }), items);
+  if (!admin) {
+    setStoredPortalContent({ sectionId, contentType, admin }, items);
+  }
+  if (admin) return;
+
+  if (sectionId && !contentType) {
+    const section = portalSections.find((currentSection) => currentSection.id === sectionId);
+    getAllowedTypes(section).forEach((type) => {
+      portalContentCache.set(
+        getPortalContentCacheKey({ sectionId, contentType: type, admin: false }),
+        filterPortalContent(items, { sectionId, contentType: type })
+      );
+      setStoredPortalContent(
+        { sectionId, contentType: type, admin: false },
+        filterPortalContent(items, { sectionId, contentType: type })
+      );
+    });
+  }
+}
+
+function getStoredPortalContent({ sectionId, contentType, admin }) {
+  if (admin || typeof window === 'undefined') return null;
+  try {
+    const rawValue = window.localStorage.getItem(PORTAL_STORAGE_PREFIX + getPortalContentCacheKey({ sectionId, contentType, admin }));
+    if (!rawValue) return null;
+    const parsed = JSON.parse(rawValue);
+    if (!Array.isArray(parsed.items)) return null;
+    portalContentCache.set(getPortalContentCacheKey({ sectionId, contentType, admin }), parsed.items);
+    return parsed.items;
+  } catch (error) {
+    console.debug('[Portal content] local cache read failed', error);
+    return null;
+  }
+}
+
+function setStoredPortalContent({ sectionId, contentType, admin }, items) {
+  if (admin || typeof window === 'undefined' || !Array.isArray(items)) return;
+  try {
+    window.localStorage.setItem(
+      PORTAL_STORAGE_PREFIX + getPortalContentCacheKey({ sectionId, contentType, admin }),
+      JSON.stringify({
+        storedAt: Date.now(),
+        items
+      })
+    );
+  } catch (error) {
+    console.debug('[Portal content] local cache write failed', error);
+  }
+}
+
+function clearPortalContentCache() {
+  portalContentCache.clear();
+  portalContentRequests.clear();
+  if (typeof window === 'undefined') return;
+  try {
+    Object.keys(window.localStorage)
+      .filter((key) => key.startsWith(PORTAL_STORAGE_PREFIX))
+      .forEach((key) => window.localStorage.removeItem(key));
+  } catch (error) {
+    console.debug('[Portal content] local cache clear failed', error);
+  }
+}
+
+function filterPortalContent(items, { sectionId, contentType }) {
+  return items.filter((item) => {
+    if (sectionId && item.section !== sectionId) return false;
+    if (contentType && item.contentType !== contentType) return false;
+    return true;
+  });
+}
+
+function warmFirstThumbnails(items) {
+  if (typeof window === 'undefined') return;
+  items.slice(0, 4).forEach((item) => {
+    const imageUrl = item.thumbnailUrl || (item.contentType === 'photo' ? item.downloadUrl : '');
+    if (!imageUrl) return;
+    const image = new Image();
+    image.decoding = 'async';
+    image.src = imageUrl;
+  });
+}
+
+export function prefetchPortalContent() {
+  if (portalPrefetchStarted) return;
+  portalPrefetchStarted = true;
+
+  const run = async () => {
+    try {
+      await loadPortalContent({ sectionId: '', contentType: '', admin: false });
+    } catch (error) {
+      console.debug('[Portal content] background prefetch failed', error);
+    }
+  };
+
+  window.setTimeout(() => {
+    if ('requestIdleCallback' in window) {
+      window.requestIdleCallback(run, { timeout: 2500 });
+      return;
+    }
+    run();
+  }, PREFETCH_DELAY);
+}
+
 export function PortalPage({ route, isAdminMode, showMessage }) {
   const page = getPageByRoute(route);
   const section = page ? getSectionByPage(page) : null;
@@ -73,7 +259,22 @@ export function PortalPage({ route, isAdminMode, showMessage }) {
     const requestId = contentRequestRef.current + 1;
     contentRequestRef.current = requestId;
     const isStale = () => contentRequestRef.current !== requestId;
-    setLoading(true);
+    const cacheOptions = {
+      sectionId: section.id,
+      contentType: routeContentType,
+      admin: false
+    };
+    const cachedItems = getCachedPortalContent(cacheOptions);
+    const hadCachedItems = Boolean(cachedItems);
+
+    if (cachedItems) {
+      setContent(cachedItems);
+      setSelectedContentIds((ids) => ids.filter((id) => cachedItems.some((item) => item.id === id)));
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+
     try {
       console.debug('[Portal content] loading', {
         route,
@@ -81,12 +282,7 @@ export function PortalPage({ route, isAdminMode, showMessage }) {
         contentType: routeContentType,
         admin: isAdminMode
       });
-      const items = await getBloggingContent({
-        section: section.id,
-        contentType: routeContentType,
-        admin: isAdminMode,
-        sync: false
-      });
+      const items = await loadPortalContent(cacheOptions);
       if (isStale()) return;
       console.debug('[Portal content] loaded', {
         route,
@@ -95,6 +291,10 @@ export function PortalPage({ route, isAdminMode, showMessage }) {
         count: items.length,
         items
       });
+      if (items.length === 0 && hadCachedItems) {
+        setLoading(false);
+        return;
+      }
       setContent(items);
       setSelectedContentIds((ids) => ids.filter((id) => items.some((item) => item.id === id)));
       setLoading(false);
@@ -187,6 +387,7 @@ export function PortalPage({ route, isAdminMode, showMessage }) {
             const result = await deleteBloggingContentBatch(selectedContentIds);
             showMessage?.(`${result.deletedCount || 0} item(s) deleted`, 'success');
             setSelectedContentIds([]);
+            clearPortalContentCache();
             await loadContent();
           } catch (error) {
             showMessage?.(`Error deleting selected content: ${error.message}`, 'error');
@@ -230,6 +431,7 @@ function BloggingAdminPanel({
     try {
       await action();
       showMessage?.(successMessage, 'success');
+      clearPortalContentCache();
       await onStructureChanged();
       await onContentChanged();
     } catch (error) {
@@ -368,7 +570,7 @@ function ContentGallery({
   busy
 }) {
   if (loading) {
-    return <div className="portal-empty-state">Loading content...</div>;
+    return <ContentSkeletonGrid page={page} />;
   }
 
   if (content.length === 0) {
@@ -412,11 +614,25 @@ function ContentGallery({
   );
 }
 
+function ContentSkeletonGrid({ page }) {
+  const skeletonSizes = ['large', 'small', 'medium', 'large', 'medium', 'small', 'large', 'medium'];
+
+  return (
+    <div className="portal-masonry portal-masonry-loading" aria-label={`${page.label} content is loading`}>
+      {skeletonSizes.map((size, index) => (
+        <div className={`portal-content-card portal-content-skeleton portal-masonry-${size}`} key={`${size}-${index}`} />
+      ))}
+    </div>
+  );
+}
+
 function ContentCard({ item, index, isAdminMode, selected, onToggleSelected }) {
   const cardSizes = ['large', 'small', 'medium', 'large', 'medium', 'small', 'large', 'medium', 'small', 'medium', 'large', 'small'];
   const size = cardSizes[index % cardSizes.length];
-  const isVideo = item.contentType === 'video';
-  const isPhoto = item.contentType === 'photo';
+  const hasVisualPreview = Boolean(item.thumbnailUrl || item.downloadUrl);
+  const mediaUrl = item.thumbnailUrl || item.downloadUrl;
+  const openUrl = item.driveUrl || item.previewUrl || item.downloadUrl;
+  const itemLabel = item.title || item.fileName || contentCardLabels[item.contentType] || 'content';
 
   return (
     <article className={`portal-content-card portal-masonry-${size} ${selected ? 'portal-content-selected' : ''}`}>
@@ -427,16 +643,12 @@ function ContentCard({ item, index, isAdminMode, selected, onToggleSelected }) {
         </label>
       )}
       <div className="portal-content-media">
-        {isVideo ? (
-          <a href={item.driveUrl} target="_blank" rel="noreferrer" className="portal-video-link" aria-label={`Open video ${item.title || item.fileName}`}>
-            <img src={item.thumbnailUrl || item.downloadUrl} alt={item.title || item.fileName} loading="lazy" />
-          </a>
-        ) : isPhoto ? (
-          <a href={item.driveUrl || item.downloadUrl} target="_blank" rel="noreferrer" className="portal-video-link" aria-label={`Open photo ${item.title || item.fileName}`}>
-            <img src={item.thumbnailUrl || item.downloadUrl} alt={item.title || item.fileName} loading="lazy" />
+        {hasVisualPreview ? (
+          <a href={openUrl} target="_blank" rel="noreferrer" className="portal-video-link" aria-label={`Open ${itemLabel}`}>
+            <img src={mediaUrl} alt={itemLabel} loading="lazy" />
           </a>
         ) : (
-          <a href={item.driveUrl} target="_blank" rel="noreferrer" className="portal-document-link">
+          <a href={openUrl} target="_blank" rel="noreferrer" className="portal-document-link">
             <Icon path={icons.document} />
             Open file
           </a>

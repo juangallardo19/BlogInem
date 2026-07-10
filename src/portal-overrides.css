@@ -827,6 +827,32 @@
     display: none !important;
 }
 
+.portal-content-skeleton {
+    background:
+        linear-gradient(90deg, rgba(220, 252, 231, 0.82), rgba(248, 255, 249, 0.94), rgba(220, 252, 231, 0.82)) !important;
+    background-size: 220% 100% !important;
+    border-color: rgba(34, 139, 34, 0.18) !important;
+    box-shadow: none !important;
+    overflow: hidden !important;
+    position: relative !important;
+}
+
+.portal-content-skeleton::before {
+    animation: portalSkeletonPulse 1s ease-in-out infinite !important;
+    background: linear-gradient(280deg, transparent 14%, rgba(255, 255, 255, 0.92) 46%, transparent 76%) !important;
+    content: "" !important;
+    display: block !important;
+    inset: 0 !important;
+    position: absolute !important;
+    transform: translateX(100%) !important;
+}
+
+@keyframes portalSkeletonPulse {
+    to {
+        transform: translateX(-100%);
+    }
+}
+
 @media (max-width: 1180px) {
     .portal-masonry {
         grid-template-columns: repeat(3, minmax(0, 1fr)) !important;

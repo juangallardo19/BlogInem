@@ -13,6 +13,7 @@ const SPREADSHEET_NAME = 'Student Experiences Database';
 const BLOGGING_ROOT_FOLDER_NAME = 'Videos Blogging M';
 const BLOGGING_PENDING_FOLDER_NAME = '00 Pending Review';
 const BLOGGING_SPREADSHEET_NAME = 'Blogging Content Database';
+const BLOGGING_SPREADSHEET_ID = '1hOcffrl_GUo27K7QLL0Rm7ozVPmRuiT5gZtjFFwXtwU';
 
 const BLOGGING_SECTIONS = [
   {
@@ -59,6 +60,13 @@ const BLOGGING_CONTENT_TYPES = {
 
 const BLOGGING_FOLDER_PROPERTY_PREFIX = 'blogging.folder.';
 const BLOGGING_SPREADSHEET_PROPERTY = 'blogging.spreadsheet.id';
+const BLOGGING_CONTENT_CACHE_VERSION_PROPERTY = 'blogging.content.cache.version';
+const BLOGGING_CONTENT_CACHE_TTL_SECONDS = 300;
+const BLOGGING_EMPTY_CONTENT_CACHE_TTL_SECONDS = 15;
+const BLOGGING_MANIFEST_PROPERTY_PREFIX = 'blogging.manifest.chunk.';
+const BLOGGING_MANIFEST_CHUNK_COUNT_PROPERTY = 'blogging.manifest.chunk.count';
+const BLOGGING_MANIFEST_UPDATED_PROPERTY = 'blogging.manifest.updated';
+const BLOGGING_MANIFEST_CHUNK_SIZE = 8000;
 
 // Contraseña de administrador (solo para eliminar - validación backend)
 const ADMIN_PASSWORD = 'Ldirinem2025';
@@ -992,6 +1000,7 @@ function scanBloggingUploads(data) {
   }
 
   const driveSyncCount = syncBloggingContentFromDrive(structure, sheet, '', '');
+  invalidateBloggingContentCache();
 
   return {
     created: created,
@@ -1030,6 +1039,9 @@ function scheduledBloggingDriveScan() {
   const sheet = spreadsheet.getActiveSheet();
   const staleDeletedCount = cleanStaleBloggingContentRows(sheet);
   const created = syncBloggingContentFromDrive(structure, sheet, '', '');
+  if (created > 0 || staleDeletedCount > 0) {
+    invalidateBloggingContentCache();
+  }
   Logger.log('Scheduled blogging drive scan completed. Created records: ' + created + '. Stale rows deleted: ' + staleDeletedCount);
   return {
     created: created,
@@ -1162,6 +1174,7 @@ function uploadBloggingContentBatch(data) {
       folderUrl: targetFolder.getUrl()
     });
   });
+  invalidateBloggingContentCache();
 
   return {
     uploaded: uploaded,
@@ -1171,21 +1184,50 @@ function uploadBloggingContentBatch(data) {
 
 function getBloggingContent(e) {
   try {
+    const startedAt = new Date().getTime();
     const shouldSync = e.parameter.sync === 'true' || e.parameter.sync === '1';
-    const structure = shouldSync ? initializeBloggingFolders() : null;
-    const spreadsheet = getOrCreateBloggingSpreadsheet(structure ? DriveApp.getFolderById(structure.rootFolderId) : null);
-    const sheet = spreadsheet.getActiveSheet();
-    const section = e.parameter.section || '';
-    const contentType = e.parameter.contentType || e.parameter.type || '';
+    const section = normalizeBloggingValue(e.parameter.section || '');
+    const contentType = normalizeBloggingValue(e.parameter.contentType || e.parameter.type || '');
     const isAdminRequest = e.parameter.password === ADMIN_PASSWORD;
-    const status = e.parameter.status || (isAdminRequest ? '' : 'published');
-    const syncCreatedCount = shouldSync ? syncBloggingContentFromDrive(structure, sheet, section, contentType) : 0;
-    const rows = readBloggingRows(sheet);
+    const status = normalizeBloggingValue(e.parameter.status || (isAdminRequest ? '' : 'published'));
+    const canUseCache = !shouldSync && !isAdminRequest;
+    const cacheKey = canUseCache ? getBloggingContentCacheKey(section, contentType, status) : '';
+    const cachedPayload = canUseCache ? getCachedBloggingContentPayload(cacheKey) : null;
+
+    if (cachedPayload) {
+      cachedPayload.fromCache = true;
+      cachedPayload.timestamp = new Date().toISOString();
+      cachedPayload.durationMs = new Date().getTime() - startedAt;
+      return createResponse(cachedPayload);
+    }
+
+    const structure = shouldSync ? initializeBloggingFolders() : null;
+    let syncCreatedCount = 0;
+    let sheetName = 'manifest';
+    let manifestUpdatedAt = '';
+    let rows = !shouldSync && !isAdminRequest ? getStoredBloggingManifestRows() : null;
+
+    if (!rows) {
+      const spreadsheet = shouldSync
+        ? getOrCreateBloggingSpreadsheet(DriveApp.getFolderById(structure.rootFolderId))
+        : getBloggingSpreadsheetForRead();
+      const sheet = getBloggingContentSheet(spreadsheet);
+      syncCreatedCount = shouldSync ? syncBloggingContentFromDrive(structure, sheet, section, contentType) : 0;
+      rows = readBloggingRows(sheet);
+      sheetName = sheet.getName();
+
+      if (!shouldSync && !isAdminRequest && rows.length > 0) {
+        setStoredBloggingManifestRows(rows);
+        manifestUpdatedAt = PropertiesService.getScriptProperties().getProperty(BLOGGING_MANIFEST_UPDATED_PROPERTY) || '';
+      }
+    } else {
+      manifestUpdatedAt = PropertiesService.getScriptProperties().getProperty(BLOGGING_MANIFEST_UPDATED_PROPERTY) || '';
+    }
 
     const content = rows.filter(function(item) {
-      if (section && item.section !== section) return false;
-      if (contentType && item.contentType !== contentType) return false;
-      if (status && item.status !== status) return false;
+      if (section && item.sectionKey !== section) return false;
+      if (contentType && item.contentTypeKey !== contentType) return false;
+      if (status && item.statusKey !== status) return false;
       return true;
     });
 
@@ -1193,14 +1235,25 @@ function getBloggingContent(e) {
       return new Date(b.updatedAt || b.timestamp) - new Date(a.updatedAt || a.timestamp);
     });
 
-    return createResponse({
+    const payload = {
       success: true,
       data: content,
       count: content.length,
       syncCreatedCount: syncCreatedCount,
       sync: shouldSync,
+      sheetName: sheetName,
+      totalRows: rows.length,
+      manifest: Boolean(manifestUpdatedAt),
+      manifestUpdatedAt: manifestUpdatedAt,
+      durationMs: new Date().getTime() - startedAt,
       timestamp: new Date().toISOString()
-    });
+    };
+
+    if (canUseCache) {
+      setCachedBloggingContentPayload(cacheKey, payload);
+    }
+
+    return createResponse(payload);
   } catch (error) {
     Logger.log('ERROR in getBloggingContent: ' + error.toString());
     return createResponse({
@@ -1485,6 +1538,8 @@ function updateBloggingContentBatch(data) {
     });
   });
 
+  invalidateBloggingContentCache();
+
   return {
     updated: updated,
     updatedCount: updated.length
@@ -1542,6 +1597,8 @@ function deleteBloggingContentBatch(data) {
     sheet.deleteRow(rowNumber);
   });
 
+  invalidateBloggingContentCache();
+
   return {
     deleted: deleted,
     deletedCount: deleted.length,
@@ -1550,6 +1607,13 @@ function deleteBloggingContentBatch(data) {
 }
 
 function getOrCreateBloggingSpreadsheet(folder) {
+  if (BLOGGING_SPREADSHEET_ID) {
+    const spreadsheet = SpreadsheetApp.openById(BLOGGING_SPREADSHEET_ID);
+    ensureBloggingHeaders(spreadsheet.getActiveSheet());
+    setBloggingSpreadsheetId(spreadsheet.getId());
+    return spreadsheet;
+  }
+
   const cachedSpreadsheet = getCachedBloggingSpreadsheet();
   const candidates = findBloggingSpreadsheetCandidates(folder);
   if (cachedSpreadsheet) {
@@ -1586,6 +1650,14 @@ function getOrCreateBloggingSpreadsheet(folder) {
 }
 
 function getCachedBloggingSpreadsheet() {
+  if (BLOGGING_SPREADSHEET_ID) {
+    try {
+      return SpreadsheetApp.openById(BLOGGING_SPREADSHEET_ID);
+    } catch (error) {
+      Logger.log('Configured blogging spreadsheet missing: ' + error.toString());
+    }
+  }
+
   const spreadsheetId = PropertiesService.getScriptProperties().getProperty(BLOGGING_SPREADSHEET_PROPERTY);
   if (!spreadsheetId) return null;
 
@@ -1596,6 +1668,106 @@ function getCachedBloggingSpreadsheet() {
     PropertiesService.getScriptProperties().deleteProperty(BLOGGING_SPREADSHEET_PROPERTY);
     return null;
   }
+}
+
+function getBloggingSpreadsheetForRead() {
+  const spreadsheet = getCachedBloggingSpreadsheet();
+  if (spreadsheet) return spreadsheet;
+  return getOrCreateBloggingSpreadsheet(null);
+}
+
+function getBloggingContentCacheKey(section, contentType, status) {
+  return [
+    'bloggingContent',
+    getBloggingContentCacheVersion(),
+    section || 'all',
+    contentType || 'all',
+    status || 'all'
+  ].join(':').replace(/[^a-zA-Z0-9:_-]/g, '_');
+}
+
+function getBloggingContentCacheVersion() {
+  return PropertiesService.getScriptProperties().getProperty(BLOGGING_CONTENT_CACHE_VERSION_PROPERTY) || '1';
+}
+
+function getCachedBloggingContentPayload(cacheKey) {
+  try {
+    const cached = CacheService.getScriptCache().get(cacheKey);
+    return cached ? JSON.parse(cached) : null;
+  } catch (error) {
+    Logger.log('Could not read blogging content cache: ' + error.toString());
+    return null;
+  }
+}
+
+function setCachedBloggingContentPayload(cacheKey, payload) {
+  try {
+    const ttl = payload && payload.count === 0 ? BLOGGING_EMPTY_CONTENT_CACHE_TTL_SECONDS : BLOGGING_CONTENT_CACHE_TTL_SECONDS;
+    CacheService.getScriptCache().put(cacheKey, JSON.stringify(payload), ttl);
+  } catch (error) {
+    Logger.log('Could not write blogging content cache: ' + error.toString());
+  }
+}
+
+function invalidateBloggingContentCache() {
+  const properties = PropertiesService.getScriptProperties();
+  properties.setProperty(BLOGGING_CONTENT_CACHE_VERSION_PROPERTY, String(new Date().getTime()));
+  clearStoredBloggingManifestRows(properties);
+}
+
+function getStoredBloggingManifestRows() {
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    const chunkCount = Number(properties.getProperty(BLOGGING_MANIFEST_CHUNK_COUNT_PROPERTY) || 0);
+    if (!chunkCount) return null;
+
+    let json = '';
+    for (let index = 0; index < chunkCount; index++) {
+      const chunk = properties.getProperty(BLOGGING_MANIFEST_PROPERTY_PREFIX + index);
+      if (chunk === null || chunk === undefined) return null;
+      json += chunk;
+    }
+
+    const rows = JSON.parse(json);
+    return Array.isArray(rows) ? rows : null;
+  } catch (error) {
+    Logger.log('Could not read blogging manifest: ' + error.toString());
+    return null;
+  }
+}
+
+function setStoredBloggingManifestRows(rows) {
+  try {
+    const properties = PropertiesService.getScriptProperties();
+    clearStoredBloggingManifestRows(properties);
+
+    const json = JSON.stringify(rows);
+    const chunkCount = Math.ceil(json.length / BLOGGING_MANIFEST_CHUNK_SIZE);
+
+    for (let index = 0; index < chunkCount; index++) {
+      properties.setProperty(
+        BLOGGING_MANIFEST_PROPERTY_PREFIX + index,
+        json.slice(index * BLOGGING_MANIFEST_CHUNK_SIZE, (index + 1) * BLOGGING_MANIFEST_CHUNK_SIZE)
+      );
+    }
+
+    properties.setProperty(BLOGGING_MANIFEST_CHUNK_COUNT_PROPERTY, String(chunkCount));
+    properties.setProperty(BLOGGING_MANIFEST_UPDATED_PROPERTY, new Date().toISOString());
+  } catch (error) {
+    Logger.log('Could not write blogging manifest: ' + error.toString());
+  }
+}
+
+function clearStoredBloggingManifestRows(properties) {
+  properties = properties || PropertiesService.getScriptProperties();
+  const chunkCount = Number(properties.getProperty(BLOGGING_MANIFEST_CHUNK_COUNT_PROPERTY) || 0);
+
+  for (let index = 0; index < chunkCount; index++) {
+    properties.deleteProperty(BLOGGING_MANIFEST_PROPERTY_PREFIX + index);
+  }
+
+  properties.deleteProperty(BLOGGING_MANIFEST_CHUNK_COUNT_PROPERTY);
+  properties.deleteProperty(BLOGGING_MANIFEST_UPDATED_PROPERTY);
 }
 
 function setBloggingSpreadsheetId(spreadsheetId) {
@@ -1692,6 +1864,33 @@ function ensureBloggingHeaders(sheet) {
   sheet.setFrozenRows(1);
 }
 
+function getBloggingContentSheet(spreadsheet) {
+  const expectedHeaders = ['ID', 'File ID', 'Content Type', 'Section', 'Status'];
+  const sheets = spreadsheet.getSheets();
+  let fallbackSheet = spreadsheet.getActiveSheet();
+
+  for (let i = 0; i < sheets.length; i++) {
+    const sheet = sheets[i];
+    const lastColumn = Math.max(sheet.getLastColumn(), 18);
+    if (sheet.getLastRow() < 1 || lastColumn < 9) continue;
+
+    const headers = sheet.getRange(1, 1, 1, lastColumn).getValues()[0].map(function(header) {
+      return String(header || '').trim();
+    });
+
+    const hasExpectedHeaders = expectedHeaders.every(function(header) {
+      return headers.indexOf(header) !== -1;
+    });
+
+    if (hasExpectedHeaders) {
+      return sheet;
+    }
+  }
+
+  Logger.log('Blogging sheet with expected headers was not found. Falling back to active sheet: ' + fallbackSheet.getName());
+  return fallbackSheet;
+}
+
 function readBloggingRows(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow <= 1) return [];
@@ -1700,6 +1899,10 @@ function readBloggingRows(sheet) {
 
   return values
     .map(function(row) {
+      const statusKey = normalizeBloggingStatus(row[8]);
+      const sectionKey = normalizeBloggingValue(row[7]);
+      const contentTypeKey = normalizeBloggingValue(row[6]);
+
       return {
         id: row[0],
         timestamp: row[1],
@@ -1708,8 +1911,11 @@ function readBloggingRows(sheet) {
         mimeType: row[4],
         sizeBytes: row[5],
         contentType: row[6],
+        contentTypeKey: contentTypeKey,
         section: row[7],
+        sectionKey: sectionKey,
         status: row[8],
+        statusKey: statusKey,
         title: row[9],
         description: row[10],
         driveUrl: row[11],
@@ -1725,6 +1931,17 @@ function readBloggingRows(sheet) {
     .filter(function(item) {
       return item.id && item.fileId;
     });
+}
+
+function normalizeBloggingValue(value) {
+  return String(value || '')
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeBloggingStatus(value) {
+  const status = normalizeBloggingValue(value);
+  return status || 'published';
 }
 
 function cleanStaleBloggingContentRows(sheet) {
@@ -2165,7 +2382,7 @@ function getDriveMediaUrls(fileId) {
 }
 
 function getDriveThumbnailUrl(fileId) {
-  return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w1000';
+  return 'https://drive.google.com/thumbnail?id=' + fileId + '&sz=w640';
 }
 
 function safeGetFileSize(file) {
