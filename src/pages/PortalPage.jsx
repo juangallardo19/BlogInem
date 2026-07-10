@@ -12,6 +12,7 @@ import { fileToBase64, formatFileSize, MAX_VIDEO_SIZE } from '../utils.js';
 
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
 const PREFETCH_DELAY = 500;
+const PORTAL_STORAGE_PREFIX = 'portalContent:v2:';
 const portalContentCache = new Map();
 const portalContentRequests = new Map();
 let portalPrefetchStarted = false;
@@ -71,10 +72,24 @@ function getCachedPortalContent({ sectionId, contentType, admin }) {
 
   if (admin) return null;
 
+  const allItems = portalContentCache.get(getPortalContentCacheKey({ sectionId: '', contentType: '', admin: false }));
+  if (allItems) return filterPortalContent(allItems, { sectionId, contentType });
+
+  const storedDirectItems = getStoredPortalContent({ sectionId, contentType, admin });
+  if (storedDirectItems) return storedDirectItems;
+
+  const storedAllItems = getStoredPortalContent({ sectionId: '', contentType: '', admin: false });
+  if (storedAllItems) return filterPortalContent(storedAllItems, { sectionId, contentType });
+
   const sectionItems = sectionId
     ? portalContentCache.get(getPortalContentCacheKey({ sectionId, contentType: '', admin: false }))
     : null;
   if (sectionItems) return filterPortalContent(sectionItems, { sectionId, contentType });
+
+  const storedSectionItems = sectionId
+    ? getStoredPortalContent({ sectionId, contentType: '', admin: false })
+    : null;
+  if (storedSectionItems) return filterPortalContent(storedSectionItems, { sectionId, contentType });
 
   return null;
 }
@@ -87,18 +102,18 @@ async function loadPortalContent({ sectionId, contentType, admin }) {
   const pendingRequest = portalContentRequests.get(cacheKey);
   if (pendingRequest) return pendingRequest;
 
-  if (!admin && sectionId && contentType) {
-    const sectionCacheKey = getPortalContentCacheKey({ sectionId, contentType: '', admin: false });
-    const pendingSectionRequest = portalContentRequests.get(sectionCacheKey);
-    if (pendingSectionRequest) {
-      const sectionItems = await pendingSectionRequest;
-      const filteredItems = filterPortalContent(sectionItems, { sectionId, contentType });
+  if (!admin && (sectionId || contentType)) {
+    const allCacheKey = getPortalContentCacheKey({ sectionId: '', contentType: '', admin: false });
+    const pendingAllRequest = portalContentRequests.get(allCacheKey);
+    if (pendingAllRequest) {
+      const allItems = await pendingAllRequest;
+      const filteredItems = filterPortalContent(allItems, { sectionId, contentType });
       portalContentCache.set(cacheKey, filteredItems);
       return filteredItems;
     }
 
-    const sectionItems = await loadPortalContent({ sectionId, contentType: '', admin: false });
-    const filteredItems = filterPortalContent(sectionItems, { sectionId, contentType });
+    const allItems = await loadPortalContent({ sectionId: '', contentType: '', admin: false });
+    const filteredItems = filterPortalContent(allItems, { sectionId, contentType });
     portalContentCache.set(cacheKey, filteredItems);
     return filteredItems;
   }
@@ -124,6 +139,9 @@ async function loadPortalContent({ sectionId, contentType, admin }) {
 
 function cachePortalContent({ sectionId, contentType, admin }, items) {
   portalContentCache.set(getPortalContentCacheKey({ sectionId, contentType, admin }), items);
+  if (!admin) {
+    setStoredPortalContent({ sectionId, contentType, admin }, items);
+  }
   if (admin) return;
 
   if (sectionId && !contentType) {
@@ -133,7 +151,54 @@ function cachePortalContent({ sectionId, contentType, admin }, items) {
         getPortalContentCacheKey({ sectionId, contentType: type, admin: false }),
         filterPortalContent(items, { sectionId, contentType: type })
       );
+      setStoredPortalContent(
+        { sectionId, contentType: type, admin: false },
+        filterPortalContent(items, { sectionId, contentType: type })
+      );
     });
+  }
+}
+
+function getStoredPortalContent({ sectionId, contentType, admin }) {
+  if (admin || typeof window === 'undefined') return null;
+  try {
+    const rawValue = window.localStorage.getItem(PORTAL_STORAGE_PREFIX + getPortalContentCacheKey({ sectionId, contentType, admin }));
+    if (!rawValue) return null;
+    const parsed = JSON.parse(rawValue);
+    if (!Array.isArray(parsed.items)) return null;
+    portalContentCache.set(getPortalContentCacheKey({ sectionId, contentType, admin }), parsed.items);
+    return parsed.items;
+  } catch (error) {
+    console.debug('[Portal content] local cache read failed', error);
+    return null;
+  }
+}
+
+function setStoredPortalContent({ sectionId, contentType, admin }, items) {
+  if (admin || typeof window === 'undefined' || !Array.isArray(items)) return;
+  try {
+    window.localStorage.setItem(
+      PORTAL_STORAGE_PREFIX + getPortalContentCacheKey({ sectionId, contentType, admin }),
+      JSON.stringify({
+        storedAt: Date.now(),
+        items
+      })
+    );
+  } catch (error) {
+    console.debug('[Portal content] local cache write failed', error);
+  }
+}
+
+function clearPortalContentCache() {
+  portalContentCache.clear();
+  portalContentRequests.clear();
+  if (typeof window === 'undefined') return;
+  try {
+    Object.keys(window.localStorage)
+      .filter((key) => key.startsWith(PORTAL_STORAGE_PREFIX))
+      .forEach((key) => window.localStorage.removeItem(key));
+  } catch (error) {
+    console.debug('[Portal content] local cache clear failed', error);
   }
 }
 
@@ -161,14 +226,11 @@ export function prefetchPortalContent() {
   portalPrefetchStarted = true;
 
   const run = async () => {
-    const results = await Promise.allSettled(
-      portalSections.map((section) => loadPortalContent({ sectionId: section.id, contentType: '', admin: false }))
-    );
-    results.forEach((result, index) => {
-      if (result.status === 'rejected') {
-        console.debug('[Portal content] background prefetch failed', portalSections[index].id, result.reason);
-      }
-    });
+    try {
+      await loadPortalContent({ sectionId: '', contentType: '', admin: false });
+    } catch (error) {
+      console.debug('[Portal content] background prefetch failed', error);
+    }
   };
 
   window.setTimeout(() => {
@@ -200,9 +262,10 @@ export function PortalPage({ route, isAdminMode, showMessage }) {
     const cacheOptions = {
       sectionId: section.id,
       contentType: routeContentType,
-      admin: isAdminMode
+      admin: false
     };
     const cachedItems = getCachedPortalContent(cacheOptions);
+    const hadCachedItems = Boolean(cachedItems);
 
     if (cachedItems) {
       setContent(cachedItems);
@@ -228,6 +291,10 @@ export function PortalPage({ route, isAdminMode, showMessage }) {
         count: items.length,
         items
       });
+      if (items.length === 0 && hadCachedItems) {
+        setLoading(false);
+        return;
+      }
       setContent(items);
       setSelectedContentIds((ids) => ids.filter((id) => items.some((item) => item.id === id)));
       setLoading(false);
@@ -320,7 +387,7 @@ export function PortalPage({ route, isAdminMode, showMessage }) {
             const result = await deleteBloggingContentBatch(selectedContentIds);
             showMessage?.(`${result.deletedCount || 0} item(s) deleted`, 'success');
             setSelectedContentIds([]);
-            portalContentCache.clear();
+            clearPortalContentCache();
             await loadContent();
           } catch (error) {
             showMessage?.(`Error deleting selected content: ${error.message}`, 'error');
@@ -364,7 +431,7 @@ function BloggingAdminPanel({
     try {
       await action();
       showMessage?.(successMessage, 'success');
-      portalContentCache.clear();
+      clearPortalContentCache();
       await onStructureChanged();
       await onContentChanged();
     } catch (error) {

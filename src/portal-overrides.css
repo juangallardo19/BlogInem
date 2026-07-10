@@ -838,18 +838,18 @@
 }
 
 .portal-content-skeleton::before {
-    animation: portalSkeletonPulse 1.2s ease-in-out infinite !important;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent) !important;
+    animation: portalSkeletonPulse 1s ease-in-out infinite !important;
+    background: linear-gradient(280deg, transparent 14%, rgba(255, 255, 255, 0.92) 46%, transparent 76%) !important;
     content: "" !important;
     display: block !important;
     inset: 0 !important;
     position: absolute !important;
-    transform: translateX(-100%) !important;
+    transform: translateX(100%) !important;
 }
 
 @keyframes portalSkeletonPulse {
     to {
-        transform: translateX(100%);
+        transform: translateX(-100%);
     }
 }
 
