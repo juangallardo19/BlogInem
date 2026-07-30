@@ -359,6 +359,12 @@
 }
 
 @media (max-width: 640px) {
+    html.mobile-navigation-open,
+    body.mobile-navigation-open {
+        overflow: hidden;
+        overscroll-behavior: none;
+    }
+
     body {
         padding: 0;
     }
@@ -387,13 +393,21 @@
         display: none;
         grid-column: 1 / -1;
         grid-template-columns: 1fr;
-        overflow: visible;
         padding: 6px 0 0;
         width: 100%;
     }
 
     .main-nav-open {
         display: grid;
+        max-height: calc(100vh - 92px - env(safe-area-inset-bottom));
+        max-height: calc(100dvh - 92px - env(safe-area-inset-bottom));
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+        scrollbar-gutter: stable;
+        touch-action: pan-y;
+        -webkit-overflow-scrolling: touch;
     }
 
     .main-nav:not(.main-nav-open) .nav-dropdown {

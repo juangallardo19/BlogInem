@@ -1,10 +1,22 @@
 ﻿import { useState } from 'react';
 import logoUrl from '../../image/covid-19-banner_6.png';
+import { useEffect } from 'react';
 import { forumRoute, portalSections } from '../data/portalSections.js';
 import { Icon, icons } from '../icons.jsx';
 
 export function SiteHeader({ currentRoute }) {
   const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const scrollLockClass = 'mobile-navigation-open';
+    document.documentElement.classList.toggle(scrollLockClass, menuOpen);
+    document.body.classList.toggle(scrollLockClass, menuOpen);
+
+    return () => {
+      document.documentElement.classList.remove(scrollLockClass);
+      document.body.classList.remove(scrollLockClass);
+    };
+  }, [menuOpen]);
 
   function handleNavigate(event) {
     setMenuOpen(false);

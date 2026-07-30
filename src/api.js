@@ -130,7 +130,7 @@ export async function consolidateBloggingFolders() {
   return result.data;
 }
 
-export async function getBloggingContent({ section, contentType, status, admin = false, sync = false } = {}) {
+export async function getBloggingContent({ section, contentType, status, ids, admin = false, sync = false } = {}) {
   const params = new URLSearchParams({
     action: 'getBloggingContent',
     t: Date.now()
@@ -138,10 +138,23 @@ export async function getBloggingContent({ section, contentType, status, admin =
   if (section) params.set('section', section);
   if (contentType) params.set('contentType', contentType);
   if (status) params.set('status', status);
+  if (ids?.length) params.set('ids', ids.join(','));
   if (admin) params.set('password', ADMIN_PASSWORD);
   if (sync) params.set('sync', 'true');
   const url = `${API_URL}?${params.toString()}`;
-  logApiRequest('getBloggingContent', url, { section, contentType, status, admin, sync });
+  logApiRequest('getBloggingContent', url, { section, contentType, status, ids, admin, sync });
+  const result = await parseJsonResponse(await fetch(url));
+  return result.data || [];
+}
+
+export async function getBloggingContentManifest() {
+  const params = new URLSearchParams({
+    action: 'getBloggingContent',
+    manifest: 'true',
+    t: Date.now()
+  });
+  const url = `${API_URL}?${params.toString()}`;
+  logApiRequest('getBloggingContentManifest', url);
   const result = await parseJsonResponse(await fetch(url));
   return result.data || [];
 }

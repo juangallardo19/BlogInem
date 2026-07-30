@@ -1186,11 +1186,19 @@ function getBloggingContent(e) {
   try {
     const startedAt = new Date().getTime();
     const shouldSync = e.parameter.sync === 'true' || e.parameter.sync === '1';
+    const manifestOnly = e.parameter.manifest === 'true' || e.parameter.manifest === '1';
+    const requestedIds = String(e.parameter.ids || '').split(',').filter(function(id) {
+      return Boolean(id);
+    });
+    const requestedIdSet = {};
+    requestedIds.forEach(function(id) {
+      requestedIdSet[id] = true;
+    });
     const section = normalizeBloggingValue(e.parameter.section || '');
     const contentType = normalizeBloggingValue(e.parameter.contentType || e.parameter.type || '');
     const isAdminRequest = e.parameter.password === ADMIN_PASSWORD;
     const status = normalizeBloggingValue(e.parameter.status || (isAdminRequest ? '' : 'published'));
-    const canUseCache = !shouldSync && !isAdminRequest;
+    const canUseCache = !shouldSync && !isAdminRequest && !manifestOnly && requestedIds.length === 0;
     const cacheKey = canUseCache ? getBloggingContentCacheKey(section, contentType, status) : '';
     const cachedPayload = canUseCache ? getCachedBloggingContentPayload(cacheKey) : null;
 
@@ -1225,6 +1233,7 @@ function getBloggingContent(e) {
     }
 
     const content = rows.filter(function(item) {
+      if (requestedIds.length > 0 && !requestedIdSet[item.id]) return false;
       if (section && item.sectionKey !== section) return false;
       if (contentType && item.contentTypeKey !== contentType) return false;
       if (status && item.statusKey !== status) return false;
@@ -1235,10 +1244,17 @@ function getBloggingContent(e) {
       return new Date(b.updatedAt || b.timestamp) - new Date(a.updatedAt || a.timestamp);
     });
 
+    const responseContent = manifestOnly ? content.map(function(item) {
+      return {
+        id: item.id,
+        revision: getBloggingContentRevision(item)
+      };
+    }) : content;
+
     const payload = {
       success: true,
-      data: content,
-      count: content.length,
+      data: responseContent,
+      count: responseContent.length,
       syncCreatedCount: syncCreatedCount,
       sync: shouldSync,
       sheetName: sheetName,
@@ -1262,6 +1278,24 @@ function getBloggingContent(e) {
       timestamp: new Date().toISOString()
     });
   }
+}
+
+function getBloggingContentRevision(item) {
+  return [
+    normalizeBloggingRevisionDate(item.updatedAt || item.timestamp),
+    item.fileId || '',
+    item.section || '',
+    item.contentType || '',
+    item.status || '',
+    item.title || '',
+    item.description || ''
+  ].join('|');
+}
+
+function normalizeBloggingRevisionDate(value) {
+  if (!value) return '';
+  const date = value instanceof Date ? value : new Date(value);
+  return isNaN(date.getTime()) ? String(value) : date.toISOString();
 }
 
 function syncBloggingContentFromDrive(structure, sheet, sectionId, contentType) {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   deleteBloggingContentBatch,
   getBloggingContent,
+  getBloggingContentManifest,
   initializeBloggingFolders,
   scanBloggingUploads,
   uploadBloggingContentBatch
@@ -12,10 +13,14 @@ import { fileToBase64, formatFileSize, MAX_VIDEO_SIZE } from '../utils.js';
 
 const MAX_PHOTO_SIZE = 10 * 1024 * 1024;
 const PREFETCH_DELAY = 500;
+const PORTAL_REVALIDATE_INTERVAL = 60 * 1000;
+const PORTAL_CHANGE_BATCH_SIZE = 80;
 const PORTAL_STORAGE_PREFIX = 'portalContent:v2:';
 const portalContentCache = new Map();
 const portalContentRequests = new Map();
 let portalPrefetchStarted = false;
+let portalSyncRequest = null;
+let portalLastValidatedAt = 0;
 
 const contentTypeLabels = {
   photo: 'Photos',
@@ -137,6 +142,79 @@ async function loadPortalContent({ sectionId, contentType, admin }) {
   return request;
 }
 
+function getPortalItemRevision(item) {
+  return [
+    normalizePortalRevisionDate(item.updatedAt || item.timestamp),
+    item.fileId || '',
+    item.section || '',
+    item.contentType || '',
+    item.status || '',
+    item.title || '',
+    item.description || ''
+  ].join('|');
+}
+
+function normalizePortalRevisionDate(value) {
+  if (!value) return '';
+  const timestamp = new Date(value);
+  return Number.isNaN(timestamp.getTime()) ? String(value) : timestamp.toISOString();
+}
+
+async function fetchChangedPortalContent(ids) {
+  const batches = [];
+  for (let index = 0; index < ids.length; index += PORTAL_CHANGE_BATCH_SIZE) {
+    batches.push(getBloggingContent({ ids: ids.slice(index, index + PORTAL_CHANGE_BATCH_SIZE) }));
+  }
+  return (await Promise.all(batches)).flat();
+}
+
+async function synchronizePortalContent({ force = false } = {}) {
+  const now = Date.now();
+  if (!force && now - portalLastValidatedAt < PORTAL_REVALIDATE_INTERVAL) {
+    return getCachedPortalContent({ sectionId: '', contentType: '', admin: false });
+  }
+  if (portalSyncRequest) return portalSyncRequest;
+
+  portalSyncRequest = (async () => {
+    const cacheOptions = { sectionId: '', contentType: '', admin: false };
+    const cachedItems = getCachedPortalContent(cacheOptions);
+    if (!cachedItems) {
+      const items = await loadPortalContent(cacheOptions);
+      portalLastValidatedAt = Date.now();
+      return items;
+    }
+
+    const manifest = await getBloggingContentManifest();
+    const cachedById = new Map(cachedItems.map((item) => [item.id, item]));
+    const changedIds = manifest
+      .filter((entry) => {
+        const cachedItem = cachedById.get(entry.id);
+        return !cachedItem || getPortalItemRevision(cachedItem) !== entry.revision;
+      })
+      .map((entry) => entry.id);
+
+    if (changedIds.length === 0 && manifest.length === cachedItems.length) {
+      portalLastValidatedAt = Date.now();
+      return cachedItems;
+    }
+
+    const changedItems = changedIds.length ? await fetchChangedPortalContent(changedIds) : [];
+    const changedById = new Map(changedItems.map((item) => [item.id, item]));
+    const reconciledItems = manifest
+      .map((entry) => changedById.get(entry.id) || cachedById.get(entry.id))
+      .filter(Boolean);
+
+    clearPortalContentCache();
+    cachePortalContent(cacheOptions, reconciledItems);
+    portalLastValidatedAt = Date.now();
+    return reconciledItems;
+  })().finally(() => {
+    portalSyncRequest = null;
+  });
+
+  return portalSyncRequest;
+}
+
 function cachePortalContent({ sectionId, contentType, admin }, items) {
   portalContentCache.set(getPortalContentCacheKey({ sectionId, contentType, admin }), items);
   if (!admin) {
@@ -228,6 +306,7 @@ export function prefetchPortalContent() {
   const run = async () => {
     try {
       await loadPortalContent({ sectionId: '', contentType: '', admin: false });
+      await synchronizePortalContent();
     } catch (error) {
       console.debug('[Portal content] background prefetch failed', error);
     }
@@ -282,7 +361,10 @@ export function PortalPage({ route, isAdminMode, showMessage }) {
         contentType: routeContentType,
         admin: isAdminMode
       });
-      const items = await loadPortalContent(cacheOptions);
+      const allItems = cachedItems
+        ? await synchronizePortalContent()
+        : await loadPortalContent({ sectionId: '', contentType: '', admin: false });
+      const items = filterPortalContent(allItems, cacheOptions);
       if (isStale()) return;
       console.debug('[Portal content] loaded', {
         route,
@@ -291,15 +373,16 @@ export function PortalPage({ route, isAdminMode, showMessage }) {
         count: items.length,
         items
       });
-      if (items.length === 0 && hadCachedItems) {
-        setLoading(false);
-        return;
-      }
       setContent(items);
       setSelectedContentIds((ids) => ids.filter((id) => items.some((item) => item.id === id)));
       setLoading(false);
     } catch (error) {
       if (isStale()) return;
+      if (hadCachedItems) {
+        console.debug('[Portal content] refresh failed; keeping cached content', error);
+        setLoading(false);
+        return;
+      }
       setContent([]);
       showMessage?.(`Error loading section content: ${error.message}`, 'error');
       setLoading(false);
@@ -320,6 +403,20 @@ export function PortalPage({ route, isAdminMode, showMessage }) {
 
   useEffect(() => {
     loadContent();
+  }, [loadContent]);
+
+  useEffect(() => {
+    const refreshVisibleContent = () => {
+      if (document.visibilityState === 'visible') {
+        loadContent();
+      }
+    };
+    const intervalId = window.setInterval(refreshVisibleContent, PORTAL_REVALIDATE_INTERVAL);
+    document.addEventListener('visibilitychange', refreshVisibleContent);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshVisibleContent);
+    };
   }, [loadContent]);
 
   useEffect(() => {
